@@ -283,7 +283,13 @@ jobs:
             echo "SIGN_KEYSTORE_PASSWORD=$PROD_KEYSTORE_PASSWORD" >> $GITHUB_ENV
             echo "SIGN_KEY_PASSWORD=$PROD_KEY_PASSWORD" >> $GITHUB_ENV
           else
-            keytool -genkey -v               -keystore debug.jks               -alias debug               -keyalg RSA -keysize 2048 -validity 365               -storepass android               -keypass android               -dname "CN=Debug"
+            keytool -genkey -v \
+              -keystore debug.jks \
+              -alias debug \
+              -keyalg RSA -keysize 2048 -validity 365 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=Debug"
             echo "SIGN_KEYSTORE_FILE=debug.jks" >> $GITHUB_ENV
             echo "SIGN_KEY_ALIAS=debug" >> $GITHUB_ENV
             echo "SIGN_KEYSTORE_PASSWORD=android" >> $GITHUB_ENV

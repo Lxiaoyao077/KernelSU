@@ -30,10 +30,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import me.weishu.kernelsu.ksuApp
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
-import me.weishu.kernelsu.ui.util.adjustLightnessArgb
 import me.weishu.kernelsu.ui.util.cssColorFromArgb
-import me.weishu.kernelsu.ui.util.ensureVisibleByMix
-import me.weishu.kernelsu.ui.util.relativeLuminance
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.OkHttpClient
 import okhttp3.Request

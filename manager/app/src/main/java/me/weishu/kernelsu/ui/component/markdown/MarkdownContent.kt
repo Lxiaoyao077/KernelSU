@@ -1,6 +1,5 @@
 package me.weishu.kernelsu.ui.component.markdown
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
