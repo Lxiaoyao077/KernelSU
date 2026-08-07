@@ -175,6 +175,9 @@ pub fn on_boot_completed() {
     info!("on_boot_completed triggered!");
 
     run_stage("boot-completed", false);
+
+    // hide bootloader unlock status if enabled (soft prop-based hiding)
+    crate::hide_bootloader::hide_bootloader_status();
 }
 
 const fn resetprop() -> ResetProp {

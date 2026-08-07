@@ -440,6 +440,12 @@ enum Feature {
 
     /// Save current kernel feature states to file
     Save,
+
+    /// Show or change bootloader hiding status
+    HideBl {
+        /// Subcommand: enable | disable | run (empty shows status)
+        action: Option<String>,
+    },
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -687,6 +693,29 @@ pub fn run() -> Result<()> {
             Feature::Check { id } => crate::feature::check_feature(&id),
             Feature::Load => crate::feature::load_config_and_apply(),
             Feature::Save => crate::feature::save_config(),
+            Feature::HideBl { action } => match action.as_deref() {
+                Some("enable") => {
+                    crate::hide_bootloader::set_bl_hiding_enabled(true)?;
+                    println!("Bootloader hiding enabled. Will take effect on next boot.");
+                    Ok(())
+                }
+                Some("disable") => {
+                    crate::hide_bootloader::set_bl_hiding_enabled(false)?;
+                    println!("Bootloader hiding disabled.");
+                    Ok(())
+                }
+                Some("run") => {
+                    crate::hide_bootloader::hide_bootloader_status();
+                    println!("Bootloader hiding executed.");
+                    Ok(())
+                }
+                _ => {
+                    let enabled = crate::hide_bootloader::is_bl_hiding_enabled();
+                    // Bare state word so the manager can parse it directly.
+                    println!("{}", if enabled { "enabled" } else { "disabled" });
+                    Ok(())
+                }
+            },
         },
 
         Commands::Debug { command } => match command {

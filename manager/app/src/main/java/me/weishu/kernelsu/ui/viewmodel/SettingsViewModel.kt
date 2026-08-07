@@ -57,6 +57,8 @@ class SettingsViewModel(
             val isKernelUmountEnabled = repo.isKernelUmountEnabled()
             val selinuxHideStatus = repo.getSelinuxHideStatus()
             val isSelinuxHideEnabled = repo.isSelinuxHideEnabled()
+            val hideBlStatus = repo.getHideBlStatus()
+            val isHideBlEnabled = repo.isHideBlEnabled()
             val sulogStatus = repo.getSulogStatus()
             val isSulogEnabled = repo.getSulogPersistValue() == 1L
             val adbRootStatus = repo.getAdbRootStatus()
@@ -89,6 +91,8 @@ class SettingsViewModel(
                     isKernelUmountEnabled = isKernelUmountEnabled,
                     selinuxHideStatus = selinuxHideStatus,
                     isSelinuxHideEnabled = isSelinuxHideEnabled,
+                    hideBlStatus = hideBlStatus,
+                    isHideBlEnabled = isHideBlEnabled,
                     sulogStatus = sulogStatus,
                     isSulogEnabled = isSulogEnabled,
                     isDefaultUmountModules = isDefaultUmountModules,
@@ -226,6 +230,26 @@ class SettingsViewModel(
     fun setAutoJailbreak(enabled: Boolean) {
         repo.autoJailbreak = enabled
         _uiState.update { it.copy(autoJailbreak = enabled) }
+    }
+
+    fun setHideBlEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = repo.setHideBlEnabled(enabled)
+            if (result) {
+                _uiState.update { it.copy(isHideBlEnabled = enabled) }
+            }
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    ksuApp,
+                    when {
+                        result && enabled -> R.string.hide_bl_enabled_toast
+                        result && !enabled -> R.string.hide_bl_disabled_toast
+                        else -> R.string.hide_bl_change_failed
+                    },
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
     fun setSulogEnabled(enabled: Boolean) {

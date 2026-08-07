@@ -259,6 +259,11 @@
     <string name="settings_selinux_hide_summary">阻止应用检测 SELinux 修改</string>
     <string name="settings_selinux_hide_reboot_required">重启生效</string>
     <string name="settings_selinux_hide_failed">错误：%d</string>
+    <string name="settings_hide_bl">隐藏 Bootloader 解锁状态</string>
+    <string name="settings_hide_bl_summary">阻止应用和服务检测已解锁的 Bootloader</string>
+    <string name="hide_bl_enabled_toast">已开启 Bootloader 隐藏，重启后生效</string>
+    <string name="hide_bl_disabled_toast">已关闭 Bootloader 隐藏</string>
+    <string name="hide_bl_change_failed">修改 Bootloader 隐藏状态失败</string>
     <string name="menu_sort">排序</string>
     <string name="sort_by_name">应用名</string>
     <string name="sort_by_package_name">包名</string>

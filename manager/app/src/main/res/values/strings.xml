@@ -193,6 +193,11 @@
     <string name="settings_selinux_hide_summary">Prevent applications from detecting SELinux modifications</string>
     <string name="settings_selinux_hide_reboot_required">Reboot to take effect</string>
     <string name="settings_selinux_hide_failed">Error: %d</string>
+    <string name="settings_hide_bl">Hide bootloader unlock</string>
+    <string name="settings_hide_bl_summary">Prevent apps and services from detecting an unlocked bootloader</string>
+    <string name="hide_bl_enabled_toast">Bootloader hiding enabled, takes effect on next reboot</string>
+    <string name="hide_bl_disabled_toast">Bootloader hiding disabled</string>
+    <string name="hide_bl_change_failed">Failed to change bootloader hiding state</string>
     <string name="settings_sulog">SU Log</string>
     <string name="settings_sulog_summary">Record Root-related events into KernelSU sulog files</string>
     <string name="feature_status_unsupported_summary">Kernel does not support this feature</string>

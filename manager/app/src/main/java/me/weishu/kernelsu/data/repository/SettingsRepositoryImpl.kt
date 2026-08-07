@@ -15,6 +15,7 @@ import me.weishu.kernelsu.ui.screen.modulerepo.RepoSort
 import me.weishu.kernelsu.ui.util.execKsud
 import me.weishu.kernelsu.ui.util.getFeaturePersistValue
 import me.weishu.kernelsu.ui.util.getFeatureStatus
+import me.weishu.kernelsu.ui.util.getHideBlState
 import java.security.SecureRandom
 
 class SettingsRepositoryImpl : SettingsRepository {
@@ -158,6 +159,14 @@ class SettingsRepositoryImpl : SettingsRepository {
     override fun isSelinuxHideEnabled(): Boolean = Natives.isSelinuxHideEnabled()
 
     override fun setSelinuxHideEnabled(enabled: Boolean): Int = Natives.setSelinuxHideEnabled(enabled)
+
+    override suspend fun getHideBlStatus(): String =
+        if (getHideBlState().isNotEmpty()) "supported" else "unsupported"
+
+    override suspend fun isHideBlEnabled(): Boolean = getHideBlState() == "enabled"
+
+    override fun setHideBlEnabled(enabled: Boolean): Boolean =
+        execKsud("feature hide-bl ${if (enabled) "enable" else "disable"}", true)
 
     override suspend fun getSulogStatus(): String = getFeatureStatus("sulog")
 
