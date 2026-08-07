@@ -211,8 +211,6 @@
     <string name="jailbreak_flash_warning">Bạn đang ở ** Chế độ Jailbreak**. Việc flash một phân vùng trên thiết bị có **bootloader bị khóa** sẽ làm hỏng AVB (Android Verified Boot) và có thể khiến thiết bị **không khởi động được**.\n\nHãy đảm bảo rằng bootloader của bạn đã được mở khoá trước khi tiếp tục!</string>
     <string name="jailbreak_flash_warning_countdown">Tiếp tục (%1$d)</string>
     <string name="settings_monet">Kích hoạt Monet</string>
-    <string name="settings_ui_mode">Kiểu UI</string>
-    <string name="settings_ui_mode_summary">Chọn kiểu giao diện.</string>
     <string name="settings_page_scale">Tỷ lệ DPI</string>
     <string name="settings_page_scale_summary">Điều chỉnh tỷ lệ DPI hiển thị.</string>
     <string name="settings_color_spec">Thông số màu sắc</string>

@@ -31,6 +31,7 @@ on:
       - 'userspace/**'
       - 'Cargo.lock'
       - 'Cargo.toml'
+  workflow_dispatch:
   workflow_call:
 
 jobs:
@@ -43,51 +44,41 @@ jobs:
       keystore_password: ${{ steps.gen.outputs.keystore_password }}
       key_password: ${{ steps.gen.outputs.key_password }}
     steps:
-      - name: Generate temporary keystore
-        if: github.event_name == 'pull_request'
+      - name: Generate keystore outputs
         id: gen
         run: |
-          KEYSTORE_PASSWORD=$(openssl rand -hex 32)
-          KEY_PASSWORD=$(openssl rand -hex 32)
-          echo "keystore_password=$KEYSTORE_PASSWORD" >> $GITHUB_OUTPUT
-          echo "key_password=$KEY_PASSWORD" >> $GITHUB_OUTPUT
-
-          keytool -genkeypair \
-            -alias pr-key \
-            -keyalg RSA -keysize 2048 \
-            -validity 1 \
-            -storepass "$KEYSTORE_PASSWORD" \
-            -keypass "$KEY_PASSWORD" \
-            -dname "CN=KernelSU PR Build" \
-            -storetype JKS \
-            -keystore pr-key.jks
-
-          echo "keystore=$(base64 -w 0 pr-key.jks)" >> $GITHUB_OUTPUT
-
-      - name: Extract certificate hash and size
-        if: github.event_name == 'pull_request'
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            KEYSTORE_PASSWORD=$(openssl rand -hex 32)
+            KEY_PASSWORD=$(openssl rand -hex 32)
+            echo "keystore_password=$KEYSTORE_PASSWORD" >> $GITHUB_OUTPUT
+            echo "key_password=$KEY_PASSWORD" >> $GITHUB_OUTPUT
+            keytool -genkeypair \
+              -alias pr-key -keyalg RSA -keysize 2048 -validity 1 \
+              -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" \
+              -dname "CN=KernelSU PR Build" -storetype JKS -keystore pr-key.jks
+            echo "keystore=$(base64 -w 0 pr-key.jks)" >> $GITHUB_OUTPUT
+          else
+            echo "keystore=" >> $GITHUB_OUTPUT
+            echo "keystore_password=" >> $GITHUB_OUTPUT
+            echo "key_password=" >> $GITHUB_OUTPUT
+          fi
+      - name: Extract cert outputs
         id: extract
-        env:
-          STORE_PASS: ${{ steps.gen.outputs.keystore_password }}
         run: |
-          # Export DER certificate
-          keytool -exportcert \
-            -alias pr-key \
-            -keystore pr-key.jks \
-            -storepass "$STORE_PASS" \
-            -file pr-cert.der
-
-          # Calculate size in hex
-          SIZE_DEC=$(stat -c%s pr-cert.der)
-          SIZE_HEX=$(printf '0x%04x' "$SIZE_DEC")
-          echo "expected_size=$SIZE_HEX" >> $GITHUB_OUTPUT
-
-          # Calculate SHA256 hash
-          HASH=$(sha256sum pr-cert.der | awk '{print $1}')
-          echo "expected_hash=$HASH" >> $GITHUB_OUTPUT
-
-          echo "Certificate size: $SIZE_HEX ($SIZE_DEC bytes)"
-          echo "Certificate hash: $HASH"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            keytool -exportcert -alias pr-key -keystore pr-key.jks \
+              -storepass "${{ steps.gen.outputs.keystore_password }}" -file pr-cert.der
+            SIZE_DEC=$(stat -c%s pr-cert.der)
+            SIZE_HEX=$(printf '0x%04x' "$SIZE_DEC")
+            echo "expected_size=$SIZE_HEX" >> $GITHUB_OUTPUT
+            HASH=$(sha256sum pr-cert.der | awk '{print $1}')
+            echo "expected_hash=$HASH" >> $GITHUB_OUTPUT
+            echo "Certificate size: $SIZE_HEX ($SIZE_DEC bytes)"
+            echo "Certificate hash: $HASH"
+          else
+            echo "expected_size=" >> $GITHUB_OUTPUT
+            echo "expected_hash=" >> $GITHUB_OUTPUT
+          fi
 
   build-lkm:
     needs: generate-key
@@ -285,13 +276,18 @@ jobs:
             echo "SIGN_KEY_ALIAS=pr-key" >> $GITHUB_ENV
             echo "SIGN_KEYSTORE_PASSWORD=$PR_KEYSTORE_PASSWORD" >> $GITHUB_ENV
             echo "SIGN_KEY_PASSWORD=$PR_KEY_PASSWORD" >> $GITHUB_ENV
-          else
-            test -n "$PROD_KEYSTORE"
+          elif [ -n "$PROD_KEYSTORE" ]; then
             echo "$PROD_KEYSTORE" | base64 -d > key.jks
             echo "SIGN_KEYSTORE_FILE=key.jks" >> $GITHUB_ENV
             echo "SIGN_KEY_ALIAS=$PROD_KEY_ALIAS" >> $GITHUB_ENV
             echo "SIGN_KEYSTORE_PASSWORD=$PROD_KEYSTORE_PASSWORD" >> $GITHUB_ENV
             echo "SIGN_KEY_PASSWORD=$PROD_KEY_PASSWORD" >> $GITHUB_ENV
+          else
+            keytool -genkey -v               -keystore debug.jks               -alias debug               -keyalg RSA -keysize 2048 -validity 365               -storepass android               -keypass android               -dname "CN=Debug"
+            echo "SIGN_KEYSTORE_FILE=debug.jks" >> $GITHUB_ENV
+            echo "SIGN_KEY_ALIAS=debug" >> $GITHUB_ENV
+            echo "SIGN_KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "SIGN_KEY_PASSWORD=android" >> $GITHUB_ENV
           fi
 
       - name: Repack and resign

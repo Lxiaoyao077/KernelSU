@@ -36,10 +36,6 @@ fun isTemplateValid(template: TemplateInfo): Boolean {
     return true
 }
 
-fun idCheck(value: String): Int {
-    return if (value.isEmpty()) 0 else if (isTemplateExist(value)) 1 else if (!isValidTemplateId(value)) 2 else 0
-}
-
 fun saveTemplate(template: TemplateInfo, isCreation: Boolean = false): Boolean {
     if (!isTemplateValid(template)) {
         return false

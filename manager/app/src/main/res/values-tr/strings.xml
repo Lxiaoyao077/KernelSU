@@ -178,8 +178,6 @@
     <string name="settings_monet">Monet\'i etkinleştir</string>
     <string name="settings_key_color">Ana renk</string>
     <string name="settings_key_color_default">Varsayılan</string>
-    <string name="settings_ui_mode">UI Stili</string>
-    <string name="settings_ui_mode_summary">Arayüz stilini seçin.</string>
     <string name="settings_page_scale">Sayfa Ölçeği</string>
     <string name="settings_page_scale_summary">Genel görüntü ölçeğini ayarlayın.</string>
     <string name="settings_color_spec">Renk Özellikleri</string>

@@ -19,16 +19,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import me.weishu.kernelsu.ui.LocalUiMode
-import me.weishu.kernelsu.ui.UiMode
-import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 
 @Composable
 fun MarkdownContent(
     content: String,
     isMarkdown: Boolean,
 ) {
-    val uiMode = LocalUiMode.current
     var loaded by remember(content, isMarkdown) { mutableStateOf(false) }
     val alpha by animateFloatAsState(
         targetValue = if (loaded) 1f else 0f,
@@ -40,40 +36,28 @@ fun MarkdownContent(
         animationSpec = tween(durationMillis = 150),
         label = "MarkdownContentPlaceholderAlpha",
     )
-    val containerColor = when (uiMode) {
-        UiMode.Material -> MaterialTheme.colorScheme.surfaceContainerHigh
-        UiMode.Miuix -> null
-    }
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .let { if (uiMode == UiMode.Miuix) it.animateContentSize(animationSpec = tween(durationMillis = 300)) else it }
+            .verticalScroll(rememberScrollState())
+            .graphicsLayer { this.alpha = alpha }
     ) {
+        GithubMarkdown(
+            content = content,
+            isMarkdown = isMarkdown,
+            onLoadingChange = { loaded = !it },
+            containerColor = containerColor,
+        )
+    }
+    if (placeholderAlpha > 0f) {
         Box(
             modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .graphicsLayer { this.alpha = alpha }
+                .fillMaxWidth()
+                .heightIn(min = 64.dp)
+                .graphicsLayer { this.alpha = placeholderAlpha },
+            contentAlignment = Alignment.Center,
         ) {
-            GithubMarkdown(
-                content = content,
-                isMarkdown = isMarkdown,
-                onLoadingChange = { loaded = !it },
-                containerColor = containerColor,
-            )
-        }
-        if (placeholderAlpha > 0f) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 64.dp)
-                    .graphicsLayer { this.alpha = placeholderAlpha },
-                contentAlignment = Alignment.Center,
-            ) {
-                when (LocalUiMode.current) {
-                    UiMode.Material -> LoadingIndicator()
-                    UiMode.Miuix -> InfiniteProgressIndicator()
-                }
-            }
+            LoadingIndicator()
         }
     }
 }
