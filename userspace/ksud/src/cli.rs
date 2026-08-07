@@ -694,14 +694,13 @@ pub fn run() -> Result<()> {
             Feature::Load => crate::feature::load_config_and_apply(),
             Feature::Save => crate::feature::save_config(),
             Feature::HideBl { action } => match action.as_deref() {
-                Some("enable") => {
-                    crate::hide_bootloader::set_bl_hiding_enabled(true)?;
-                    println!("Bootloader hiding enabled. Will take effect on next boot.");
-                    Ok(())
-                }
-                Some("disable") => {
-                    crate::hide_bootloader::set_bl_hiding_enabled(false)?;
-                    println!("Bootloader hiding disabled.");
+                Some("enable") | Some("disable") => {
+                    let enable = matches!(action.as_deref(), Some("enable"));
+                    crate::hide_bootloader::set_bl_hiding_enabled(enable)?;
+                    println!(
+                        "Bootloader hiding {} (takes effect on next boot)",
+                        if enable { "enabled" } else { "disabled" }
+                    );
                     Ok(())
                 }
                 Some("run") => {
@@ -710,9 +709,14 @@ pub fn run() -> Result<()> {
                     Ok(())
                 }
                 _ => {
-                    let enabled = crate::hide_bootloader::is_bl_hiding_enabled();
-                    // Bare state word so the manager can parse it directly.
-                    println!("{}", if enabled { "enabled" } else { "disabled" });
+                    println!(
+                        "{}",
+                        if crate::hide_bootloader::is_bl_hiding_enabled() {
+                            "enabled"
+                        } else {
+                            "disabled"
+                        }
+                    );
                     Ok(())
                 }
             },

@@ -57,7 +57,6 @@ class SettingsViewModel(
             val isKernelUmountEnabled = repo.isKernelUmountEnabled()
             val selinuxHideStatus = repo.getSelinuxHideStatus()
             val isSelinuxHideEnabled = repo.isSelinuxHideEnabled()
-            val hideBlStatus = repo.getHideBlStatus()
             val isHideBlEnabled = repo.isHideBlEnabled()
             val sulogStatus = repo.getSulogStatus()
             val isSulogEnabled = repo.getSulogPersistValue() == 1L
@@ -91,7 +90,6 @@ class SettingsViewModel(
                     isKernelUmountEnabled = isKernelUmountEnabled,
                     selinuxHideStatus = selinuxHideStatus,
                     isSelinuxHideEnabled = isSelinuxHideEnabled,
-                    hideBlStatus = hideBlStatus,
                     isHideBlEnabled = isHideBlEnabled,
                     sulogStatus = sulogStatus,
                     isSulogEnabled = isSulogEnabled,
@@ -238,16 +236,13 @@ class SettingsViewModel(
             if (result) {
                 _uiState.update { it.copy(isHideBlEnabled = enabled) }
             }
+            val msg = when {
+                result && enabled -> R.string.hide_bl_enabled_toast
+                result -> R.string.hide_bl_disabled_toast
+                else -> R.string.hide_bl_change_failed
+            }
             withContext(Dispatchers.Main) {
-                Toast.makeText(
-                    ksuApp,
-                    when {
-                        result && enabled -> R.string.hide_bl_enabled_toast
-                        result && !enabled -> R.string.hide_bl_disabled_toast
-                        else -> R.string.hide_bl_change_failed
-                    },
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(ksuApp, msg, Toast.LENGTH_LONG).show()
             }
         }
     }

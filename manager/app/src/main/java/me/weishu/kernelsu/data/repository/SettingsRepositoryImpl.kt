@@ -160,9 +160,6 @@ class SettingsRepositoryImpl : SettingsRepository {
 
     override fun setSelinuxHideEnabled(enabled: Boolean): Int = Natives.setSelinuxHideEnabled(enabled)
 
-    override suspend fun getHideBlStatus(): String =
-        if (getHideBlState().isNotEmpty()) "supported" else "unsupported"
-
     override suspend fun isHideBlEnabled(): Boolean = getHideBlState() == "enabled"
 
     override fun setHideBlEnabled(enabled: Boolean): Boolean =

@@ -39,7 +39,6 @@ interface SettingsRepository {
     fun isSelinuxHideEnabled(): Boolean
     fun setSelinuxHideEnabled(enabled: Boolean): Int
 
-    suspend fun getHideBlStatus(): String
     suspend fun isHideBlEnabled(): Boolean
     fun setHideBlEnabled(enabled: Boolean): Boolean
 

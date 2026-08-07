@@ -34,7 +34,6 @@ data class SettingsUiState(
     val isSelinuxHideEnabled: Boolean = false,
 
     // Hide Bootloader
-    val hideBlStatus: String = "supported",
     val isHideBlEnabled: Boolean = false,
 
     // SU Log

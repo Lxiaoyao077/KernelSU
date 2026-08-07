@@ -195,16 +195,10 @@ fun SettingPagerMaterial(
                             )
                         },
                         {
-                            val hideBlSummary = when (uiState.hideBlStatus) {
-                                "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
-                                "managed" -> stringResource(id = R.string.feature_status_managed_summary)
-                                else -> stringResource(id = R.string.settings_hide_bl_summary)
-                            }
                             SegmentedSwitchItem(
                                 icon = Icons.Filled.VerifiedUser,
                                 title = stringResource(id = R.string.settings_hide_bl),
-                                summary = hideBlSummary,
-                                enabled = uiState.hideBlStatus == "supported",
+                                summary = stringResource(id = R.string.settings_hide_bl_summary),
                                 checked = uiState.isHideBlEnabled,
                                 onCheckedChange = actions.onSetHideBlEnabled
                             )

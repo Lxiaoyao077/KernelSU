@@ -176,7 +176,7 @@ pub fn on_boot_completed() {
 
     run_stage("boot-completed", false);
 
-    // hide bootloader unlock status if enabled (soft prop-based hiding)
+    // hide bootloader unlock status if enabled
     crate::hide_bootloader::hide_bootloader_status();
 }
 
