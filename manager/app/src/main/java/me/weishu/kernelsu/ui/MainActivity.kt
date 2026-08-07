@@ -266,6 +266,7 @@ fun MainScreen(
                 HorizontalPager(
                     state = mainPagerState.pagerState,
                     beyondViewportPageCount = if (contentReady) 3 else 0,
+                    overscrollEffect = null,
                     userScrollEnabled = userScrollEnabled,
                 ) { page ->
                     val isCurrentPage = page == settledPage
