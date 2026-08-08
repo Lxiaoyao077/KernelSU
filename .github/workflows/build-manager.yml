@@ -40,45 +40,24 @@ jobs:
     outputs:
       expected_size: ${{ steps.extract.outputs.expected_size }}
       expected_hash: ${{ steps.extract.outputs.expected_hash }}
-      keystore: ${{ steps.gen.outputs.keystore }}
-      keystore_password: ${{ steps.gen.outputs.keystore_password }}
-      key_password: ${{ steps.gen.outputs.key_password }}
     steps:
-      - name: Generate keystore outputs
-        id: gen
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            KEYSTORE_PASSWORD=$(openssl rand -hex 32)
-            KEY_PASSWORD=$(openssl rand -hex 32)
-            echo "keystore_password=$KEYSTORE_PASSWORD" >> $GITHUB_OUTPUT
-            echo "key_password=$KEY_PASSWORD" >> $GITHUB_OUTPUT
-            keytool -genkeypair \
-              -alias pr-key -keyalg RSA -keysize 2048 -validity 1 \
-              -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" \
-              -dname "CN=KernelSU PR Build" -storetype JKS -keystore pr-key.jks
-            echo "keystore=$(base64 -w 0 pr-key.jks)" >> $GITHUB_OUTPUT
-          else
-            echo "keystore=" >> $GITHUB_OUTPUT
-            echo "keystore_password=" >> $GITHUB_OUTPUT
-            echo "key_password=" >> $GITHUB_OUTPUT
-          fi
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - name: Extract cert outputs
         id: extract
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            keytool -exportcert -alias pr-key -keystore pr-key.jks \
-              -storepass "${{ steps.gen.outputs.keystore_password }}" -file pr-cert.der
-            SIZE_DEC=$(stat -c%s pr-cert.der)
-            SIZE_HEX=$(printf '0x%04x' "$SIZE_DEC")
-            echo "expected_size=$SIZE_HEX" >> $GITHUB_OUTPUT
-            HASH=$(sha256sum pr-cert.der | awk '{print $1}')
-            echo "expected_hash=$HASH" >> $GITHUB_OUTPUT
-            echo "Certificate size: $SIZE_HEX ($SIZE_DEC bytes)"
-            echo "Certificate hash: $HASH"
-          else
-            echo "expected_size=" >> $GITHUB_OUTPUT
-            echo "expected_hash=" >> $GITHUB_OUTPUT
-          fi
+          keytool -exportcert -alias debug -keystore manager/ksu-debug.jks \
+            -storepass android -file ksu-cert.der
+          SIZE_DEC=$(stat -c%s ksu-cert.der)
+          SIZE_HEX=$(printf '0x%04x' "$SIZE_DEC")
+          HASH=$(sha256sum ksu-cert.der | awk '{print $1}')
+          echo "expected_size=$SIZE_HEX" >> $GITHUB_OUTPUT
+          echo "expected_hash=$HASH" >> $GITHUB_OUTPUT
+          echo "Certificate size: $SIZE_HEX ($SIZE_DEC bytes)"
+          echo "Certificate hash: $HASH"
 
   build-lkm:
     needs: generate-key
@@ -152,21 +131,6 @@ jobs:
             } >> gradle.properties
             echo "${{ secrets.KEYSTORE }}" | base64 -d > key.jks
           fi
-
-      - name: Write PR key
-        if: github.event_name == 'pull_request'
-        env:
-          PR_KEYSTORE: ${{ needs.generate-key.outputs.keystore }}
-          PR_KEYSTORE_PASSWORD: ${{ needs.generate-key.outputs.keystore_password }}
-          PR_KEY_PASSWORD: ${{ needs.generate-key.outputs.key_password }}
-        run: |
-          echo "$PR_KEYSTORE" | base64 -d > pr-key.jks
-          {
-            echo KEYSTORE_PASSWORD="$PR_KEYSTORE_PASSWORD"
-            echo KEY_ALIAS='pr-key'
-            echo KEY_PASSWORD="$PR_KEY_PASSWORD"
-            echo KEYSTORE_FILE='pr-key.jks'
-          } >> gradle.properties
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -262,35 +226,20 @@ jobs:
       - name: Prepare signing inputs
         if: ${{ github.event_name == 'pull_request' || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')) || github.ref_type == 'tag' }}
         env:
-          PR_KEYSTORE: ${{ needs.generate-key.outputs.keystore }}
-          PR_KEYSTORE_PASSWORD: ${{ needs.generate-key.outputs.keystore_password }}
-          PR_KEY_PASSWORD: ${{ needs.generate-key.outputs.key_password }}
           PROD_KEYSTORE: ${{ secrets.KEYSTORE }}
           PROD_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           PROD_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           PROD_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "$PR_KEYSTORE" | base64 -d > pr-key.jks
-            echo "SIGN_KEYSTORE_FILE=pr-key.jks" >> $GITHUB_ENV
-            echo "SIGN_KEY_ALIAS=pr-key" >> $GITHUB_ENV
-            echo "SIGN_KEYSTORE_PASSWORD=$PR_KEYSTORE_PASSWORD" >> $GITHUB_ENV
-            echo "SIGN_KEY_PASSWORD=$PR_KEY_PASSWORD" >> $GITHUB_ENV
-          elif [ -n "$PROD_KEYSTORE" ]; then
+          if [ -n "$PROD_KEYSTORE" ]; then
             echo "$PROD_KEYSTORE" | base64 -d > key.jks
             echo "SIGN_KEYSTORE_FILE=key.jks" >> $GITHUB_ENV
             echo "SIGN_KEY_ALIAS=$PROD_KEY_ALIAS" >> $GITHUB_ENV
             echo "SIGN_KEYSTORE_PASSWORD=$PROD_KEYSTORE_PASSWORD" >> $GITHUB_ENV
             echo "SIGN_KEY_PASSWORD=$PROD_KEY_PASSWORD" >> $GITHUB_ENV
           else
-            keytool -genkey -v \
-              -keystore debug.jks \
-              -alias debug \
-              -keyalg RSA -keysize 2048 -validity 365 \
-              -storepass android \
-              -keypass android \
-              -dname "CN=Debug"
-            echo "SIGN_KEYSTORE_FILE=debug.jks" >> $GITHUB_ENV
+            # 仓库内置固定 keystore，保证每次构建的 APK 签名一致、可覆盖安装
+            echo "SIGN_KEYSTORE_FILE=manager/ksu-debug.jks" >> $GITHUB_ENV
             echo "SIGN_KEY_ALIAS=debug" >> $GITHUB_ENV
             echo "SIGN_KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
             echo "SIGN_KEY_PASSWORD=android" >> $GITHUB_ENV

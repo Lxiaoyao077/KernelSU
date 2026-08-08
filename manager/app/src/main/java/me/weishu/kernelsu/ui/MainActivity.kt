@@ -145,7 +145,13 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    BackHandler {
+                    val atRoot = remember {
+                        derivedStateOf {
+                            navigator.current() is Route.Main && navigator.backStackSize() == 1
+                        }
+                    }
+                    // 根页面不拦截返回，否则会 pop 掉唯一的 Main 导致空白背景界面
+                    BackHandler(enabled = !atRoot.value) {
                         when (val top = navigator.current()) {
                             is Route.TemplateEditor -> {
                                 if (!top.readOnly) {
