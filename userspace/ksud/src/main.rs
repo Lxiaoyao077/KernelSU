@@ -31,9 +31,9 @@ mod ksucalls;
 #[cfg(target_os = "android")]
 mod late_load;
 #[cfg(target_os = "android")]
-mod magica;
-#[cfg(target_os = "android")]
 mod magic_mount;
+#[cfg(target_os = "android")]
+mod magica;
 #[cfg(target_os = "android")]
 mod metamodule;
 #[cfg(target_os = "android")]

@@ -804,19 +804,18 @@ private fun ModuleItem(
                 }
             }
 
-            // Magic Mount engine toggle (opt-in per module)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Magic Mount",
+                    text = stringResource(R.string.magic_mount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 ExpressiveSwitch(
-                    enabled = !module.remove && module.enabled,
+                    enabled = !module.remove && module.enabled && !module.update,
                     checked = module.magicMount,
                     onCheckedChange = {
                         haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)

@@ -1,9 +1,5 @@
-//! Magic mount: bind-mount based module mounting engine.
-//!
-//! Ported from FolkPatch (APatch family) `apd/src/magic_mount.rs`.
-//! A module is mounted by this engine when its directory contains a
-//! `.magic_mount` marker file; other modules are left to their own
-//! scripts / initrc (KernelSU default behavior), so both coexist.
+//! Magic mount: bind-mount module engine (ported from FolkPatch).
+//! Modules opt in via a `.magic_mount` marker; others keep their own mounting.
 
 use std::{
     cmp::PartialEq,
@@ -63,19 +59,15 @@ impl NodeFileType {
         }
     }
 
-    /// Check if mounting this node type over `real_path` requires a tmpfs overlay
-    /// due to type mismatch or missing file.
+    /// Whether mounting this node over `real_path` needs a tmpfs overlay.
     fn needs_tmpfs_vs_real(&self, real_path: &Path) -> bool {
         match self {
             Symlink => true,
             Whiteout => real_path.exists(),
-            _ => match real_path.symlink_metadata() {
-                Ok(metadata) => {
-                    let real_type = Self::from_file_type(metadata.file_type());
-                    real_type != *self || real_type == Symlink
-                }
-                Err(_) => true,
-            },
+            _ => real_path.symlink_metadata().map_or(true, |metadata| {
+                let real_type = Self::from_file_type(metadata.file_type());
+                real_type != *self || real_type == Symlink
+            }),
         }
     }
 }
@@ -84,7 +76,7 @@ impl NodeFileType {
 struct Node {
     name: String,
     file_type: NodeFileType,
-    children: HashMap<String, Node>,
+    children: HashMap<String, Self>,
     // the module that owned this node
     module_path: Option<PathBuf>,
     replace: bool,
@@ -147,26 +139,22 @@ impl Node {
         path.as_ref().join(REPLACE_DIR_FILE_NAME).exists()
     }
 
-    fn new_root<T: ToString>(name: T) -> Self {
-        Node {
+    fn new_root(name: &str) -> Self {
+        Self {
             name: name.to_string(),
             file_type: Directory,
-            children: Default::default(),
+            children: HashMap::default(),
             module_path: None,
             replace: false,
             skip: false,
         }
     }
 
-    fn new_module<S>(name: &S, entry: &DirEntry) -> Option<Self>
-    where
-        S: ToString,
-    {
-        // Use file_type() (does NOT follow symlinks) so symlinks are kept as
-        // Symlink nodes instead of being resolved to their target type.
+    fn new_module(name: &str, entry: &DirEntry) -> Option<Self> {
+        // file_type() avoids following symlinks, keeping them as Symlink nodes.
         let file_type = match entry.file_type() {
             Ok(ft) if ft.is_char_device() => {
-                let is_whiteout = entry.metadata().map(|m| m.rdev() == 0).unwrap_or(false);
+                let is_whiteout = entry.metadata().is_ok_and(|m| m.rdev() == 0);
                 if is_whiteout {
                     NodeFileType::Whiteout
                 } else {
@@ -213,15 +201,16 @@ fn collect_module_files() -> Result<Option<Node>> {
             continue;
         }
 
-        // Non-UTF8 module dir names are skipped instead of panicking.
         let Some(id) = entry.file_name().to_str().map(str::to_string) else {
-            log::warn!("skip module with non-UTF8 name: {:?}", entry.file_name());
+            log::warn!(
+                "skip module with non-UTF8 name: {}",
+                entry.file_name().to_string_lossy()
+            );
             continue;
         };
         log::debug!("processing new module: {id}");
 
-        let prop = entry.path().join("module.prop");
-        if !prop.exists() {
+        if !entry.path().join("module.prop").exists() {
             log::debug!("skipped module {id}, because not found module.prop");
             continue;
         }
@@ -234,24 +223,22 @@ fn collect_module_files() -> Result<Option<Node>> {
             continue;
         }
 
-        // Only mount modules explicitly opted into the magic mount engine.
+        // Skip modules without the magic mount opt-in.
         if !entry.path().join(MAGIC_MOUNT_MARK_FILE).exists() {
             log::debug!(
-                "skipped module {id}, no {} marker (uses its own mounting)",
-                MAGIC_MOUNT_MARK_FILE
+                "skipped module {id}, no {MAGIC_MOUNT_MARK_FILE} marker (uses its own mounting)"
             );
             continue;
         }
 
-        let mod_system = entry.path().join("system");
-
-        if !mod_system.is_dir() {
+        let system_dir = entry.path().join("system");
+        if !system_dir.is_dir() {
             continue;
         }
 
         log::debug!("collecting {}", entry.path().display());
 
-        has_file |= system.collect_module_files(mod_system)?;
+        has_file |= system.collect_module_files(system_dir)?;
     }
 
     if has_file {
@@ -287,7 +274,7 @@ fn clone_symlink<Src: AsRef<Path>, Dst: AsRef<Path>>(src: Src, dst: Dst) -> Resu
     lsetfilecon(dst.as_ref(), lgetfilecon(src.as_ref())?.as_str())?;
     log::debug!(
         "clone symlink {} -> {}({})",
-        dst.as_ref().display(),
+        src.as_ref().display(),
         dst.as_ref().display(),
         src_symlink.display()
     );
@@ -298,8 +285,14 @@ fn mount_mirror<P: AsRef<Path>, WP: AsRef<Path>>(
     path: P,
     work_dir_path: WP,
     entry: &DirEntry,
+    depth: u32,
 ) -> Result<()> {
     let path = path.as_ref().join(entry.file_name());
+    if depth > MAX_MODULE_DEPTH {
+        log::warn!("mirror tree too deep at {}, stop mirroring", path.display());
+        return Ok(());
+    }
+
     let work_dir_path = work_dir_path.as_ref().join(entry.file_name());
     let file_type = entry.file_type()?;
 
@@ -327,7 +320,7 @@ fn mount_mirror<P: AsRef<Path>, WP: AsRef<Path>>(
         )?;
         lsetfilecon(&work_dir_path, lgetfilecon(&path)?.as_str())?;
         for entry in read_dir(&path)?.flatten() {
-            mount_mirror(&path, &work_dir_path, &entry)?;
+            mount_mirror(&path, &work_dir_path, &entry, depth + 1)?;
         }
     } else if file_type.is_symlink() {
         log::debug!(
@@ -416,7 +409,7 @@ fn process_existing_entries(
             do_magic_mount(path, work_dir_path, node, has_tmpfs)
                 .with_context(|| format!("magic mount {}/{name}", path.display()))
         } else if has_tmpfs {
-            mount_mirror(path, work_dir_path, &entry)
+            mount_mirror(path, work_dir_path, &entry, 0)
                 .with_context(|| format!("mount mirror {}/{name}", path.display()))
         } else {
             Ok(())
@@ -532,11 +525,35 @@ fn do_magic_mount<P: AsRef<Path>, WP: AsRef<Path>>(
     Ok(())
 }
 
-/// Mount all modules marked with `.magic_mount` using the bind-mount engine.
+/// True if `path` is itself a mount point (device differs from parent's).
+fn is_mountpoint(path: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(meta) = fs::metadata(path) else {
+        return false;
+    };
+    let Some(parent) = path.parent() else {
+        return false;
+    };
+    let Ok(parent_meta) = fs::metadata(parent) else {
+        return false;
+    };
+    meta.dev() != parent_meta.dev()
+}
+
+/// Bind-mount all modules opted into magic mount.
 pub fn magic_mount() -> Result<()> {
     if let Some(root) = collect_module_files()? {
-        log::debug!("collected: {:#?}", root);
+        log::debug!("collected: {root:#?}");
         let tmp_dir = PathBuf::from(MAGIC_MOUNT_SOURCE);
+
+        // Drop a stale tmpfs so soft_reboot cannot stack mounts.
+        if is_mountpoint(&tmp_dir) {
+            if let Err(e) = unmount(&tmp_dir, UnmountFlags::DETACH) {
+                log::warn!("stale tmpfs at {}: {e}", tmp_dir.display());
+            }
+            fs::remove_dir_all(&tmp_dir).ok();
+        }
+
         fs::create_dir_all(&tmp_dir)?;
         mount(
             "tmpfs",
@@ -548,10 +565,9 @@ pub fn magic_mount() -> Result<()> {
         .context("mount tmp")?;
         mount_change(&tmp_dir, MountPropagationFlags::PRIVATE).context("make tmp private")?;
         let result = do_magic_mount("/", &tmp_dir, root, false);
-        // Always detach the tmpfs and clean its skeleton so a failed mount
-        // leaves no inconsistent residue.
+        // Detach and clean up even on failure to avoid residue.
         if let Err(e) = unmount(&tmp_dir, UnmountFlags::DETACH) {
-            log::error!("failed to unmount tmp {}", e);
+            log::error!("failed to unmount tmp {e}");
         }
         fs::remove_dir_all(&tmp_dir).ok();
         result

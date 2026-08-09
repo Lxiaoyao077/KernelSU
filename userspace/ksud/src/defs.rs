@@ -42,7 +42,6 @@ mod android {
     // Mark a module to be mounted by ksud's magic mount instead of its own scripts
     pub const MAGIC_MOUNT_MARK_FILE: &str = ".magic_mount";
 
-
     // Module config system
     pub const MODULE_CONFIG_DIR: &str = concatcp!(WORKING_DIR, "module_configs/");
     pub const PERSIST_CONFIG_NAME: &str = "persist.config";

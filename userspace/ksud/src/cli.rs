@@ -317,7 +317,7 @@ enum Module {
         /// module id
         id: String,
         /// true to enable magic mount (default), false to disable
-        #[arg(long, default_value_t = true)]
+        #[arg(long, action = clap::ArgAction::Set, default_value_t = true)]
         on: bool,
     },
 
@@ -704,7 +704,7 @@ pub fn run() -> Result<()> {
             Feature::Load => crate::feature::load_config_and_apply(),
             Feature::Save => crate::feature::save_config(),
             Feature::HideBl { action } => match action.as_deref() {
-                Some("enable") | Some("disable") => {
+                Some("enable" | "disable") => {
                     let enable = matches!(action.as_deref(), Some("enable"));
                     crate::hide_bootloader::set_bl_hiding_enabled(enable)?;
                     println!(

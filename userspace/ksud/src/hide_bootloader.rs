@@ -108,12 +108,12 @@ pub fn hide_bootloader_status() {
     }
     // bootmode in recovery leaks recovery state
     for key in BOOT_KEYS {
-        if let Some(val) = crate::utils::getprop(key) {
-            if val.contains("recovery") {
-                info!("hide_bl: resetting {key} (recovery) to unknown");
-                if let Err(e) = reset_prop(key, "unknown") {
-                    warn!("hide_bl: failed to reset {key}: {e:#}");
-                }
+        if let Some(val) = crate::utils::getprop(key)
+            && val.contains("recovery")
+        {
+            info!("hide_bl: resetting {key} (recovery) to unknown");
+            if let Err(e) = reset_prop(key, "unknown") {
+                warn!("hide_bl: failed to reset {key}: {e:#}");
             }
         }
     }

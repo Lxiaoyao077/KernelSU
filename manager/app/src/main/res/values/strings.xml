@@ -43,6 +43,8 @@
     <string name="sulog_entry_title_dropped_events">Dropped events</string>
     <string name="module_failed_to_enable">Failed to enable module: %s</string>
     <string name="module_failed_to_disable">Failed to disable module: %s</string>
+    <string name="module_magic_mount_failed">Failed to change Magic Mount setting</string>
+    <string name="magic_mount">Magic Mount</string>
     <string name="module_empty">No module installed</string>
     <string name="module">Module</string>
     <string name="module_install_prompt_with_name">The following modules will be installed: %1$s</string>

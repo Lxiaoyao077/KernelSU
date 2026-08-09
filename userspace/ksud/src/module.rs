@@ -496,10 +496,13 @@ pub fn handle_updated_modules() -> Result<()> {
             let module_dir = modules_root.join(name);
             let mut disabled = false;
             let mut removed = false;
+            let mut magic_mount = false;
             if module_dir.exists() {
                 // If the old module is disabled, we need to also disable the new one
                 disabled = module_dir.join(defs::DISABLE_FILE_NAME).exists();
                 removed = module_dir.join(defs::REMOVE_FILE_NAME).exists();
+                // Keep the runtime-created marker across updates.
+                magic_mount = module_dir.join(defs::MAGIC_MOUNT_MARK_FILE).exists();
                 remove_dir_all(&module_dir)?;
             }
             rename(updated_module, &module_dir)?;
@@ -512,6 +515,11 @@ pub fn handle_updated_modules() -> Result<()> {
                 let path = module_dir.join(defs::DISABLE_FILE_NAME);
                 if let Err(e) = ensure_file_exists(&path) {
                     warn!("Failed to create {}: {e}", path.display());
+                }
+            } else if magic_mount {
+                let path = module_dir.join(defs::MAGIC_MOUNT_MARK_FILE);
+                if let Err(e) = ensure_file_exists(&path) {
+                    warn!("Failed to restore {}: {e}", path.display());
                 }
             }
         }
@@ -770,6 +778,13 @@ pub fn set_module_magic_mount(id: &str, on: bool) -> Result<()> {
 
     let module_path = Path::new(defs::MODULE_DIR).join(id);
     ensure!(module_path.exists(), "Module {id} not found");
+
+    // A module without a `system/` directory has nothing for the magic mount
+    // engine to mount; enabling the flag would silently do nothing. Fail early
+    // so the manager can surface a clear error instead of a misleading success.
+    if !module_path.join("system").is_dir() {
+        bail!("Module {id} has no system/ directory; magic mount has no effect");
+    }
 
     let mark_path = module_path.join(defs::MAGIC_MOUNT_MARK_FILE);
     if on {

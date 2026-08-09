@@ -401,7 +401,7 @@ class ModuleViewModel(
                 fetchModuleList(checkUpdate = false, resort = false)
                 emitEffect(ModuleEffect.SnackBar(res.getString(R.string.reboot_to_apply)))
             } else {
-                emitEffect(ModuleEffect.SnackBar(res.getString(R.string.module_failed_to_enable).format(module.name)))
+                emitEffect(ModuleEffect.SnackBar(res.getString(R.string.module_magic_mount_failed)))
             }
         }
     }
