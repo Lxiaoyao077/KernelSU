@@ -120,6 +120,11 @@ pub fn on_post_data_fs() -> Result<()> {
         warn!("execute metamodule mount failed: {e}");
     }
 
+    // magic mount modules marked with `.magic_mount` (FolkPatch/APatch style)
+    if let Err(e) = crate::magic_mount::magic_mount() {
+        warn!("magic mount failed: {e:#}");
+    }
+
     run_stage("post-mount", true);
 
     std::env::set_current_dir("/").with_context(|| "failed to chdir to /")?;
