@@ -26,8 +26,8 @@ use rustix::{
 
 use crate::{
     defs::{
-        DISABLE_FILE_NAME, MAGIC_MOUNT_MARK_FILE, MAGIC_MOUNT_SOURCE, MODULE_DIR,
-        REMOVE_FILE_NAME, SKIP_MOUNT_FILE_NAME,
+        DISABLE_FILE_NAME, MAGIC_MOUNT_MARK_FILE, MAGIC_MOUNT_SOURCE, MODULE_DIR, REMOVE_FILE_NAME,
+        SKIP_MOUNT_FILE_NAME,
     },
     magic_mount::NodeFileType::{Directory, RegularFile, Symlink, Whiteout},
     restorecon::{lgetfilecon, lsetfilecon},
@@ -470,16 +470,14 @@ fn do_magic_mount<P: AsRef<Path>, WP: AsRef<Path>>(
                 mount_bind(&work_dir_path, &work_dir_path).context("bind self")?;
             }
             if path.exists() && !current.replace {
-                process_existing_entries(
-                    &path,
-                    &work_dir_path,
-                    &mut current.children,
-                    has_tmpfs,
-                )?;
+                process_existing_entries(&path, &work_dir_path, &mut current.children, has_tmpfs)?;
             }
             if current.replace {
                 if current.module_path.is_none() {
-                    bail!("dir {} is declared as replaced but it is root!", path.display());
+                    bail!(
+                        "dir {} is declared as replaced but it is root!",
+                        path.display()
+                    );
                 }
                 log::debug!("dir {} is replaced", path.display());
             }
@@ -501,14 +499,7 @@ pub fn magic_mount() -> Result<()> {
         log::debug!("collected: {:#?}", root);
         let tmp_dir = PathBuf::from(MAGIC_MOUNT_SOURCE);
         fs::create_dir_all(&tmp_dir)?;
-        mount(
-            "tmpfs",
-            &tmp_dir,
-            "tmpfs",
-            MountFlags::empty(),
-            None,
-        )
-        .context("mount tmp")?;
+        mount("tmpfs", &tmp_dir, "tmpfs", MountFlags::empty(), None).context("mount tmp")?;
         mount_change(&tmp_dir, MountPropagationFlags::PRIVATE).context("make tmp private")?;
         let result = do_magic_mount("/", &tmp_dir, root, false);
         if let Err(e) = unmount(&tmp_dir, UnmountFlags::DETACH) {
