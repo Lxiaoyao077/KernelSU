@@ -43,6 +43,7 @@ import okhttp3.Request
 import java.text.Collator
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
+import me.weishu.kernelsu.ui.util.toggleMagicMount as toggleMagicMountUtil
 import me.weishu.kernelsu.ui.util.toggleModule as toggleModuleUtil
 import me.weishu.kernelsu.ui.util.undoUninstallModule as undoUninstallModuleUtil
 import me.weishu.kernelsu.ui.util.uninstallModule as uninstallModuleUtil
@@ -386,6 +387,21 @@ class ModuleViewModel(
             } else {
                 val message = if (module.enabled) R.string.module_failed_to_disable else R.string.module_failed_to_enable
                 emitEffect(ModuleEffect.SnackBar(res.getString(message).format(module.name)))
+            }
+        }
+    }
+
+    fun toggleMagicMount(module: Module) {
+        viewModelScope.launch {
+            val res = ksuApp.resources
+            val success = withContext(Dispatchers.IO) {
+                toggleMagicMountUtil(module.id, !module.magicMount)
+            }
+            if (success) {
+                fetchModuleList(checkUpdate = false, resort = false)
+                emitEffect(ModuleEffect.SnackBar(res.getString(R.string.reboot_to_apply)))
+            } else {
+                emitEffect(ModuleEffect.SnackBar(res.getString(R.string.module_failed_to_enable).format(module.name)))
             }
         }
     }

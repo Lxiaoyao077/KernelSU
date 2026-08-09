@@ -161,6 +161,13 @@ fun toggleModule(id: String, enable: Boolean): Boolean {
     return result
 }
 
+fun toggleMagicMount(id: String, on: Boolean): Boolean {
+    val cmd = "module magic-mount $id --on $on"
+    val result = execKsud(cmd, true)
+    Log.i(TAG, "$cmd result: $result")
+    return result
+}
+
 fun undoUninstallModule(id: String): Boolean {
     val cmd = "module undo-uninstall $id"
     val result = execKsud(cmd, true)

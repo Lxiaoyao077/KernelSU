@@ -13,6 +13,7 @@ data class Module(
     val enabled: Boolean,
     val update: Boolean,
     val remove: Boolean,
+    val magicMount: Boolean = false,
     val updateJson: String,
     val hasWebUi: Boolean,
     val hasActionScript: Boolean,

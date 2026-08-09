@@ -135,6 +135,9 @@ fun ModulePager(
         onToggleModule = { module ->
             viewModel.toggleModule(module)
         },
+        onToggleMagicMount = { module ->
+            viewModel.toggleMagicMount(module)
+        },
         onUninstallModule = { module ->
             viewModel.uninstallModule(module)
         },

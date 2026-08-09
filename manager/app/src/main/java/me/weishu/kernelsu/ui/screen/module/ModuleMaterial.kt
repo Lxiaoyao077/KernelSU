@@ -538,6 +538,9 @@ private fun ModuleList(
                 onCheckChanged = {
                     actions.onToggleModule(module)
                 },
+                onMagicMountToggle = {
+                    actions.onToggleMagicMount(module)
+                },
                 onUpdate = {
                     scope.launch {
                         loadingDialog.withLoading {
@@ -715,6 +718,7 @@ private fun ModuleItem(
     updateUrl: String,
     onUninstallClicked: () -> Unit,
     onCheckChanged: (Boolean) -> Unit,
+    onMagicMountToggle: () -> Unit,
     onUpdate: () -> Unit,
     onAddShortcut: (ShortcutType) -> Unit,
     onClick: () -> Unit,
@@ -798,6 +802,28 @@ private fun ModuleItem(
                         interactionSource = if (!module.hasWebUi) interactionSource else remember { MutableInteractionSource() }
                     )
                 }
+            }
+
+            // Magic Mount engine toggle (opt-in per module)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Magic Mount",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                ExpressiveSwitch(
+                    enabled = !module.remove && module.enabled,
+                    checked = module.magicMount,
+                    onCheckedChange = {
+                        haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                        onMagicMountToggle()
+                    },
+                    interactionSource = remember { MutableInteractionSource() }
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))

@@ -312,6 +312,15 @@ enum Module {
         id: String,
     },
 
+    /// toggle magic mount for module <id>
+    MagicMount {
+        /// module id
+        id: String,
+        /// true to enable magic mount (default), false to disable
+        #[arg(long, default_value_t = true)]
+        on: bool,
+    },
+
     /// list all modules
     List,
 
@@ -531,6 +540,7 @@ pub fn run() -> Result<()> {
                 Module::Enable { id } => module::enable_module(&id),
                 Module::Disable { id } => module::disable_module(&id),
                 Module::Action { id } => module::run_action(&id),
+                Module::MagicMount { id, on } => module::set_module_magic_mount(&id, on),
                 Module::List => module::list_modules(),
                 Module::Config { internal, command } => {
                     let module_id = match internal {
