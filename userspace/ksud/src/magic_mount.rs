@@ -8,6 +8,7 @@
 use std::{
     cmp::PartialEq,
     collections::{HashMap, hash_map::Entry},
+    ffi::CStr,
     fs,
     fs::{DirEntry, FileType, create_dir, create_dir_all, read_dir, read_link},
     os::unix::fs::{FileTypeExt, symlink},
@@ -24,17 +25,22 @@ use rustix::{
     },
 };
 
+use self::NodeFileType::{Directory, RegularFile, Symlink, Whiteout};
 use crate::{
     defs::{
         DISABLE_FILE_NAME, MAGIC_MOUNT_MARK_FILE, MAGIC_MOUNT_SOURCE, MODULE_DIR, REMOVE_FILE_NAME,
         SKIP_MOUNT_FILE_NAME,
     },
-    magic_mount::NodeFileType::{Directory, RegularFile, Symlink, Whiteout},
     restorecon::{lgetfilecon, lsetfilecon},
 };
 
 const REPLACE_DIR_FILE_NAME: &str = ".replace";
 const REPLACE_DIR_XATTR: &str = "trusted.overlay.opaque";
+
+/// Max module tree depth to guard against stack overflow on pathological trees.
+const MAX_MODULE_DEPTH: u32 = 128;
+/// tmpfs size limit for the mount skeleton workspace.
+const TMPFS_SIZE: &CStr = c"size=16M,mode=755";
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 enum NodeFileType {
@@ -90,6 +96,21 @@ impl Node {
     where
         P: AsRef<Path>,
     {
+        self.collect_module_files_depth(module_dir, 0)
+    }
+
+    fn collect_module_files_depth<P>(&mut self, module_dir: P, depth: u32) -> Result<bool>
+    where
+        P: AsRef<Path>,
+    {
+        if depth > MAX_MODULE_DEPTH {
+            log::warn!(
+                "module tree too deep at {}, stop collecting",
+                module_dir.as_ref().display()
+            );
+            return Ok(false);
+        }
+
         let dir = module_dir.as_ref();
         let mut has_file = false;
         for entry in dir.read_dir()?.flatten() {
@@ -102,7 +123,8 @@ impl Node {
 
             if let Some(node) = node {
                 has_file |= if node.file_type == NodeFileType::Directory {
-                    node.collect_module_files(dir.join(&node.name))? || node.replace
+                    node.collect_module_files_depth(dir.join(&node.name), depth + 1)?
+                        || node.replace
                 } else {
                     true
                 }
@@ -140,28 +162,33 @@ impl Node {
     where
         S: ToString,
     {
-        if let Ok(metadata) = entry.metadata() {
-            let path = entry.path();
-            let file_type = if metadata.file_type().is_char_device() && metadata.rdev() == 0 {
-                NodeFileType::Whiteout
-            } else {
-                NodeFileType::from_file_type(metadata.file_type())
-            };
-            let replace = file_type == NodeFileType::Directory && Self::dir_is_replace(&path);
-            if replace {
-                log::debug!("{} need replace", path.display());
+        // Use file_type() (does NOT follow symlinks) so symlinks are kept as
+        // Symlink nodes instead of being resolved to their target type.
+        let file_type = match entry.file_type() {
+            Ok(ft) if ft.is_char_device() => {
+                let is_whiteout = entry.metadata().map(|m| m.rdev() == 0).unwrap_or(false);
+                if is_whiteout {
+                    NodeFileType::Whiteout
+                } else {
+                    NodeFileType::from_file_type(ft)
+                }
             }
-            return Some(Self {
-                name: name.to_string(),
-                file_type,
-                children: HashMap::default(),
-                module_path: Some(path),
-                replace,
-                skip: false,
-            });
+            Ok(ft) => NodeFileType::from_file_type(ft),
+            Err(_) => return None,
+        };
+        let path = entry.path();
+        let replace = file_type == NodeFileType::Directory && Self::dir_is_replace(&path);
+        if replace {
+            log::debug!("{} need replace", path.display());
         }
-
-        None
+        Some(Self {
+            name: name.to_string(),
+            file_type,
+            children: HashMap::default(),
+            module_path: Some(path),
+            replace,
+            skip: false,
+        })
     }
 }
 
@@ -171,6 +198,14 @@ fn collect_module_files() -> Result<Option<Node>> {
     let module_root = Path::new(MODULE_DIR);
     let mut has_file = false;
 
+    if !module_root.is_dir() {
+        log::info!(
+            "module dir {} not present, skip magic mount",
+            module_root.display()
+        );
+        return Ok(None);
+    }
+
     log::debug!("begin collect module files: {}", module_root.display());
 
     for entry in module_root.read_dir()?.flatten() {
@@ -178,7 +213,11 @@ fn collect_module_files() -> Result<Option<Node>> {
             continue;
         }
 
-        let id = entry.file_name().to_str().unwrap().to_string();
+        // Non-UTF8 module dir names are skipped instead of panicking.
+        let Some(id) = entry.file_name().to_str().map(str::to_string) else {
+            log::warn!("skip module with non-UTF8 name: {:?}", entry.file_name());
+            continue;
+        };
         log::debug!("processing new module: {id}");
 
         let prop = entry.path().join("module.prop");
@@ -499,13 +538,22 @@ pub fn magic_mount() -> Result<()> {
         log::debug!("collected: {:#?}", root);
         let tmp_dir = PathBuf::from(MAGIC_MOUNT_SOURCE);
         fs::create_dir_all(&tmp_dir)?;
-        mount("tmpfs", &tmp_dir, "tmpfs", MountFlags::empty(), None).context("mount tmp")?;
+        mount(
+            "tmpfs",
+            &tmp_dir,
+            "tmpfs",
+            MountFlags::empty(),
+            Some(TMPFS_SIZE),
+        )
+        .context("mount tmp")?;
         mount_change(&tmp_dir, MountPropagationFlags::PRIVATE).context("make tmp private")?;
         let result = do_magic_mount("/", &tmp_dir, root, false);
+        // Always detach the tmpfs and clean its skeleton so a failed mount
+        // leaves no inconsistent residue.
         if let Err(e) = unmount(&tmp_dir, UnmountFlags::DETACH) {
             log::error!("failed to unmount tmp {}", e);
         }
-        fs::remove_dir(tmp_dir).ok();
+        fs::remove_dir_all(&tmp_dir).ok();
         result
     } else {
         log::info!("no magic mount modules, skipping!");
