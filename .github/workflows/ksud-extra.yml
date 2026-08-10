@@ -22,8 +22,6 @@ jobs:
     runs-on: ${{ inputs.os }}
     steps:
     - uses: actions/checkout@v7
-      with:
-        fetch-depth: 0
 
     - name: Download artifacts
       uses: actions/download-artifact@v8
@@ -40,15 +38,14 @@ jobs:
         
     - name: Setup rustup
       run: |
-        rustup update stable
         if [[ ${{ inputs.target }} == *"-apple-darwin" ]]; then
           rustup target add ${{ inputs.target }}
         fi
     - uses: Swatinem/rust-cache@v2
       with:
         workspaces: userspace/ksud
-        cache-targets: false
         cache-bin: false
+        key: ${{ inputs.target }}
 
     - name: Install cross
       run: |

@@ -16,6 +16,10 @@ on:
       - '.github/workflows/clippy.yml'
       - 'userspace/**'
 
+concurrency:
+  group: clippy-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   RUSTFLAGS: '-Dwarnings'
 
@@ -25,11 +29,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - run: rustup update stable
-      
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: userspace/ksud
+          workspaces: .
+          key: clippy
 
       - uses: nttld/setup-ndk@v1
         id: setup-ndk

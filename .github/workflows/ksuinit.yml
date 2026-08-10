@@ -11,18 +11,16 @@ jobs:
     runs-on: ${{ inputs.os }}
     steps:
     - uses: actions/checkout@v7
-      with:
-        fetch-depth: 0
         
     - name: Setup rustup
       run: |
-        rustup update stable
         rustup target add aarch64-unknown-linux-musl
 
     - uses: Swatinem/rust-cache@v2
       with:
         workspaces: . -> target
-        cache-targets: false
+        cache-bin: false
+        key: ksuinit
 
     - name: Build ksuinit
       run: |
