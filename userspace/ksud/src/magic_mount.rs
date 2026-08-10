@@ -272,7 +272,7 @@ fn collect_module_files() -> Result<Option<Node>> {
                         file_type: Directory,
                         children: HashMap::default(),
                         module_path: Some(part_dir.clone()),
-                        replace: Self::dir_is_replace(&part_dir),
+                        replace: Node::dir_is_replace(&part_dir),
                         skip: false,
                     };
                     system.children.insert(partition.to_string(), node);
