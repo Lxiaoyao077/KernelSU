@@ -1,0 +1,68 @@
+name: Sync upstream
+
+on:
+  schedule:
+    # Daily 03:00 UTC. Adjust to your local timezone if preferred.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check for upstream commits
+        id: check
+        run: |
+          git remote add upstream https://github.com/tiann/KernelSU.git
+          git fetch upstream main
+          AHEAD=$(git rev-list --count HEAD..upstream/main)
+          echo "ahead=$AHEAD" >> "$GITHUB_OUTPUT"
+          echo "upstream_sha=$(git rev-parse upstream/main)" >> "$GITHUB_OUTPUT"
+          echo "Upstream has $AHEAD new commit(s) since fork main"
+
+      - name: Merge upstream and open PR
+        if: steps.check.outputs.ahead != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="sync-upstream-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH" origin/main
+
+          if ! git merge --no-edit upstream/main; then
+            git merge --abort
+            echo "::warning::Merge conflict with upstream main; sync skipped. Resolve manually."
+            exit 0
+          fi
+
+          git push origin "$BRANCH"
+
+          # Skip if a sync PR for this upstream sha already exists
+          EXISTING=$(gh pr list --base main --head "$BRANCH" --state open --json number --jq 'length')
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "Sync PR already open."
+            exit 0
+          fi
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore: sync upstream tiann/KernelSU (${{ steps.check.outputs.ahead }} commit(s))" \
+            --body "Automated sync of \`tiann/KernelSU\` main into this fork.
+
+- Upstream head: \`${{ steps.check.outputs.upstream_sha }}\`
+- New upstream commits: ${{ steps.check.outputs.ahead }}
+
+Review and merge after verifying the fork-specific changes (kernel/setup.sh, keystore config, CI) still work.
+"
