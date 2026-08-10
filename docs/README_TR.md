@@ -24,10 +24,7 @@ KernelSU resmi olarak Android GKI 2.0 cihazlarını (5.10+ kernelli) destekler, 
 
 Bununla birlikte; WSA, ChromeOS ve konteyner tabanlı Android'in tamamı desteklenmektedir.
 
-Şu anda `arm64-v8a` ve `x86_64` mimarileri desteklenmektedir.
-
-> [!CAUTION]
-> Yeni çekirdek sürümleri, KernelSU'nun çökmesine ve `x86_64` üzerinde kernel panic tetiklemesine neden olabilecek uyumsuz bir değişiklik uyguladı! Daha fazla bilgi için web sitesini kontrol edin!
+Şu anda `arm64-v8a` mimarisi desteklenmektedir.
 
 ## Kullanım
 

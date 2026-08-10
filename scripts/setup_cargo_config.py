@@ -91,11 +91,9 @@ def render_config(ndk_root: Path, host_tag: str, api_level: int) -> str:
 
     aarch64_clang = bin_dir / f"aarch64-linux-android{api_level}-clang{exe_suffix}"
     aarch64_clangxx = bin_dir / f"aarch64-linux-android{api_level}-clang++{exe_suffix}"
-    x86_64_clang = bin_dir / f"x86_64-linux-android{api_level}-clang{exe_suffix}"
-    x86_64_clangxx = bin_dir / f"x86_64-linux-android{api_level}-clang++{exe_suffix}"
     llvm_ar = bin_dir / ar_name
 
-    for path in (aarch64_clang, aarch64_clangxx, x86_64_clang, x86_64_clangxx, llvm_ar):
+    for path in (aarch64_clang, aarch64_clangxx, llvm_ar):
         if not path.is_file():
             raise FileNotFoundError(f"Required NDK tool not found: {path}")
     
@@ -103,7 +101,6 @@ def render_config(ndk_root: Path, host_tag: str, api_level: int) -> str:
     sysroot_with_slashes = str(sysroot).replace('\\', '/')
 
     aarch64_bindgen = f"--sysroot={sysroot_with_slashes} -I{sysroot / 'usr' / 'include' / 'aarch64-linux-android'}"
-    x86_64_bindgen = f"--sysroot={sysroot_with_slashes} -I{sysroot / 'usr' / 'include' / 'x86_64-linux-android'}"
 
     return "\n".join(
         [
@@ -115,19 +112,11 @@ def render_config(ndk_root: Path, host_tag: str, api_level: int) -> str:
             "[target.aarch64-linux-android]",
             f"linker = {toml_string(str(aarch64_clang))}",
             "",
-            "[target.x86_64-linux-android]",
-            f"linker = {toml_string(str(x86_64_clang))}",
-            "",
             "[env]",
             f"CC_aarch64_linux_android = {toml_string(str(aarch64_clang))}",
             f"CXX_aarch64_linux_android = {toml_string(str(aarch64_clangxx))}",
             f"AR_aarch64_linux_android = {toml_string(str(llvm_ar))}",
             f'BINDGEN_EXTRA_CLANG_ARGS_aarch64_linux_android = {toml_string(aarch64_bindgen)}',
-            "",
-            f"CC_x86_64_linux_android = {toml_string(str(x86_64_clang))}",
-            f"CXX_x86_64_linux_android = {toml_string(str(x86_64_clangxx))}",
-            f"AR_x86_64_linux_android = {toml_string(str(llvm_ar))}",
-            f'BINDGEN_EXTRA_CLANG_ARGS_x86_64_linux_android = {toml_string(x86_64_bindgen)}',
             "",
         ]
     )

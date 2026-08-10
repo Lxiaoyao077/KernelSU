@@ -17,8 +17,6 @@
 #else
 #include "asm/insn.h" // IWYU pragma: keep
 #endif
-#elif __x86_64__
-#include <asm/ptrace.h>
 #else
 #error "Unsupported arch"
 #endif
