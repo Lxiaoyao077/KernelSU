@@ -38,6 +38,16 @@ const MAX_MODULE_DEPTH: u32 = 128;
 /// tmpfs size limit for the mount skeleton workspace.
 const TMPFS_SIZE: &CStr = c"size=16M,mode=755";
 
+/// Partitions that may be relocated from /system/<name> to /<name> on devices
+/// where the real /system/<name> is a symlink (or, for `odm`/`oem`, always).
+const BUILTIN_PARTITIONS: [(&str, bool); 5] = [
+    ("vendor", true),
+    ("system_ext", true),
+    ("product", true),
+    ("odm", false),
+    ("oem", false),
+];
+
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 enum NodeFileType {
     RegularFile,
@@ -107,6 +117,12 @@ impl Node {
         let mut has_file = false;
         for entry in dir.read_dir()?.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
+
+            // The `.replace` marker only tags its parent directory; it must
+            // not end up mounted as a real file.
+            if name == REPLACE_DIR_FILE_NAME {
+                continue;
+            }
 
             let node = match self.children.entry(name.clone()) {
                 Entry::Occupied(o) => Some(o.into_mut()),
@@ -239,17 +255,36 @@ fn collect_module_files() -> Result<Option<Node>> {
         log::debug!("collecting {}", entry.path().display());
 
         has_file |= system.collect_module_files(system_dir)?;
+
+        // The installer moves system/<partition> to the module root and leaves
+        // a symlink behind. Collect the real partition dirs so their content
+        // is mounted instead of an empty symlink clone.
+        for (partition, _) in BUILTIN_PARTITIONS {
+            let part_dir = entry.path().join(partition);
+            if part_dir.is_dir() {
+                let is_symlink_node = system
+                    .children
+                    .get(partition)
+                    .is_some_and(|n| n.file_type == NodeFileType::Symlink);
+                if is_symlink_node || !system.children.contains_key(partition) {
+                    let node = Node {
+                        name: partition.to_string(),
+                        file_type: Directory,
+                        children: HashMap::default(),
+                        module_path: Some(part_dir.clone()),
+                        replace: Self::dir_is_replace(&part_dir),
+                        skip: false,
+                    };
+                    system.children.insert(partition.to_string(), node);
+                }
+                if let Some(node) = system.children.get_mut(partition) {
+                    has_file |= node.collect_module_files(&part_dir)?;
+                }
+            }
+        }
     }
 
     if has_file {
-        const BUILTIN_PARTITIONS: [(&str, bool); 5] = [
-            ("vendor", true),
-            ("system_ext", true),
-            ("product", true),
-            ("odm", false),
-            ("oem", false),
-        ];
-
         for (partition, require_symlink) in BUILTIN_PARTITIONS {
             let path_of_root = Path::new("/").join(partition);
             let path_of_system = Path::new("/system").join(partition);
@@ -344,7 +379,11 @@ fn should_create_tmpfs(path: &Path, current: &mut Node, has_tmpfs: bool) -> bool
     for (name, node) in &mut current.children {
         let real_path = path.join(name);
         if node.file_type.needs_tmpfs_vs_real(&real_path) {
-            if current.module_path.is_none() {
+            // Nodes without a module dir (e.g. the root `system` node) can
+            // still overlay an existing real path; only bail out when there
+            // is no source at all. Skipping would silently drop new files,
+            // new dirs and whiteouts directly under /system.
+            if current.module_path.is_none() && !path.exists() {
                 log::error!("cannot create tmpfs on {}, ignore: {name}", path.display());
                 node.skip = true;
                 continue;
@@ -384,11 +423,10 @@ fn prepare_tmpfs_skeleton(
     Ok(())
 }
 
-fn handle_mount_result(result: Result<()>, path: &Path, name: &str, has_tmpfs: bool) -> Result<()> {
+/// Log a failed child mount and keep going: one broken node must not abort
+/// the mounts of the remaining modules.
+fn handle_mount_result(result: Result<()>, path: &Path, name: &str) -> Result<()> {
     if let Err(e) = result {
-        if has_tmpfs {
-            return Err(e);
-        }
         log::error!("mount child {}/{} failed: {}", path.display(), name, e);
     }
     Ok(())
@@ -414,7 +452,7 @@ fn process_existing_entries(
         } else {
             Ok(())
         };
-        handle_mount_result(result, path, &name, has_tmpfs)?;
+        handle_mount_result(result, path, &name)?;
     }
     Ok(())
 }
@@ -431,7 +469,7 @@ fn process_remaining_children(
         }
         let result = do_magic_mount(path, work_dir_path, node, has_tmpfs)
             .with_context(|| format!("magic mount {}/{name}", path.display()));
-        handle_mount_result(result, path, &name, has_tmpfs)?;
+        handle_mount_result(result, path, &name)?;
     }
     Ok(())
 }

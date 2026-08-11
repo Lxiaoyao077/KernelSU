@@ -313,6 +313,12 @@ mark_remove() {
   chmod 644 $1
 }
 
+mark_replace() {
+  mkdir -p ${1%/*} 2>/dev/null
+  touch "$1/.replace"
+  chmod 644 "$1/.replace"
+}
+
 request_size_check() {
   reqSizeM=`du -ms "$1" | cut -f1`
 }
