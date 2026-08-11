@@ -109,7 +109,6 @@ import me.weishu.kernelsu.ui.component.material.TopBarBackButton
 import me.weishu.kernelsu.ui.component.material.expressiveTopAppBarColors
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
 import me.weishu.kernelsu.ui.util.download
-import me.weishu.kernelsu.ui.util.rememberContentReady
 
 @SuppressLint("LocalContextGetResourceValueCall")
 @Composable
@@ -207,7 +206,7 @@ fun ModuleRepoScreenMaterial(
     ) { innerPadding ->
         val isLoading = state.modules.isEmpty()
         val hadDataOnEntry = remember { state.modules.isNotEmpty() }
-        val contentReady = hadDataOnEntry || rememberContentReady()
+        val contentReady = true
 
         if (!contentReady || isLoading) {
             Box(
@@ -488,7 +487,7 @@ private fun ReadmePage(
     scrollBehavior: TopAppBarScrollBehavior
 ) {
     val layoutDirection = LocalLayoutDirection.current
-    val isReady = rememberContentReady()
+    val isReady = true
 
     LazyColumn(
         modifier = Modifier
@@ -596,7 +595,7 @@ fun ReleasesPage(
                         if (rel.descriptionHTML.isNotEmpty()) {
                             add {
                                 SegmentedItemContainer {
-                                    val descReady = rememberContentReady()
+                                    val descReady = true
                                     var descLoaded by remember(rel.descriptionHTML) { mutableStateOf(false) }
                                     val descAlpha by animateFloatAsState(
                                         targetValue = if (descLoaded) 1f else 0f,

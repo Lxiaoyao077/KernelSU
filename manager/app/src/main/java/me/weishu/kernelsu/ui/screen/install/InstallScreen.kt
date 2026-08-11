@@ -2,7 +2,6 @@ package me.weishu.kernelsu.ui.screen.install
 
 import android.app.Activity
 import android.content.Intent
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SnackbarHostState
@@ -23,8 +22,6 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import kotlinx.coroutines.launch
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.getKernelVersion
-import me.weishu.kernelsu.ui.LocalUiMode
-import me.weishu.kernelsu.ui.UiMode
 import me.weishu.kernelsu.ui.component.choosekmidialog.ChooseKmiDialog
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 import me.weishu.kernelsu.ui.navigation3.Route
@@ -42,7 +39,6 @@ fun InstallScreen() {
     val navigator = LocalNavigator.current
     val context = LocalContext.current
     val snackbarHost = remember { SnackbarHostState() }
-    val uiMode = LocalUiMode.current
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
 
@@ -96,11 +92,7 @@ fun InstallScreen() {
 
     fun showMessage(message: String) {
         scope.launch {
-            if (uiMode == UiMode.Material) {
-                snackbarHost.showSnackbar(message)
-            } else {
-                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-            }
+            snackbarHost.showSnackbar(message)
         }
     }
 
@@ -210,8 +202,5 @@ fun InstallScreen() {
         }
     )
 
-    when (LocalUiMode.current) {
-        UiMode.Miuix -> InstallScreenMiuix(state, actions)
-        UiMode.Material -> InstallScreenMaterial(state, actions, snackbarHost)
-    }
+    InstallScreenMaterial(state, actions, snackbarHost)
 }
