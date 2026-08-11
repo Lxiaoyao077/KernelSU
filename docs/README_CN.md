@@ -58,3 +58,4 @@ WSA, ChromeOS 和运行在容器上的 Android 也可以与 KernelSU 一起工�
 - [Magisk](https://github.com/topjohnwu/Magisk)：强大的 root 工具箱。
 - [genuine](https://github.com/brevent/genuine/)：apk v2 签名验证。
 - [Diamorphine](https://github.com/m0nad/Diamorphine)：一些 rootkit 技巧。
+- [FolkPatch](https://github.com/LyraVoid/FolkPatch)：`ksud` 内置的 Magic Mount 模块挂载引擎与 Bootloader 隐藏功能。

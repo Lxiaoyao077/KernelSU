@@ -60,3 +60,4 @@ For information on reporting security vulnerabilities in KernelSU, see [SECURITY
 - [Magisk](https://github.com/topjohnwu/Magisk): The powerful root tool.
 - [genuine](https://github.com/brevent/genuine/): APK v2 signature validation.
 - [Diamorphine](https://github.com/m0nad/Diamorphine): Some rootkit skills.
+- [FolkPatch](https://github.com/LyraVoid/FolkPatch): The built-in magic mount module engine and the bootloader hiding feature in `ksud`.
