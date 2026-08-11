@@ -25,11 +25,17 @@ fun getGitDescribe(): String {
     return process.inputStream.bufferedReader().use { it.readText().trim() }
 }
 
+fun getGitShortHash(): String {
+    val process = Runtime.getRuntime().exec(arrayOf("git", "rev-parse", "--short", "HEAD"))
+    return process.inputStream.bufferedReader().use { it.readText().trim() }
+}
+
 fun getVersionCode(): Int {
     val commitCount = getGitCommitCount()
     return 30000 + commitCount
 }
 
 fun getVersionName(): String {
-    return getGitDescribe()
+    // Format: v3.3.0-<commit_count>-g<short_hash>, matching KowSU style
+    return "v3.3.0-${getGitCommitCount()}-g${getGitShortHash()}"
 }
