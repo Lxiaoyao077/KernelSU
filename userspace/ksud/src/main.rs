@@ -23,6 +23,8 @@ mod defs;
 #[cfg(target_os = "android")]
 mod feature;
 #[cfg(target_os = "android")]
+mod hide_bootloader;
+#[cfg(target_os = "android")]
 mod init_event;
 #[cfg(target_os = "android")]
 mod ksucalls;
@@ -30,6 +32,8 @@ mod ksucalls;
 mod late_load;
 mod lkm_image;
 mod lkm_image_btf;
+#[cfg(target_os = "android")]
+mod magic_mount;
 #[cfg(target_os = "android")]
 mod magica;
 #[cfg(target_os = "android")]

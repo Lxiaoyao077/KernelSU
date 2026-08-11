@@ -496,10 +496,13 @@ pub fn handle_updated_modules() -> Result<()> {
             let module_dir = modules_root.join(name);
             let mut disabled = false;
             let mut removed = false;
+            let mut magic_mount = false;
             if module_dir.exists() {
                 // If the old module is disabled, we need to also disable the new one
                 disabled = module_dir.join(defs::DISABLE_FILE_NAME).exists();
                 removed = module_dir.join(defs::REMOVE_FILE_NAME).exists();
+                // Keep the runtime-created marker across updates.
+                magic_mount = module_dir.join(defs::MAGIC_MOUNT_MARK_FILE).exists();
                 remove_dir_all(&module_dir)?;
             }
             rename(updated_module, &module_dir)?;
@@ -512,6 +515,11 @@ pub fn handle_updated_modules() -> Result<()> {
                 let path = module_dir.join(defs::DISABLE_FILE_NAME);
                 if let Err(e) = ensure_file_exists(&path) {
                     warn!("Failed to create {}: {e}", path.display());
+                }
+            } else if magic_mount {
+                let path = module_dir.join(defs::MAGIC_MOUNT_MARK_FILE);
+                if let Err(e) = ensure_file_exists(&path) {
+                    warn!("Failed to restore {}: {e}", path.display());
                 }
             }
         }
@@ -763,6 +771,39 @@ pub fn disable_module(id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Enable/disable the magic mount engine for a module by creating or removing
+/// the `.magic_mount` marker file in its directory.
+pub fn set_module_magic_mount(id: &str, on: bool) -> Result<()> {
+    validate_module_id(id)?;
+
+    let module_path = Path::new(defs::MODULE_DIR).join(id);
+    ensure!(module_path.exists(), "Module {id} not found");
+
+    // A module without a `system/` directory has nothing for the magic mount
+    // engine to mount; enabling the flag would silently do nothing. Fail early
+    // so the manager can surface a clear error instead of a misleading success.
+    if !module_path.join("system").is_dir() {
+        bail!("Module {id} has no system/ directory; magic mount has no effect");
+    }
+
+    let mark_path = module_path.join(defs::MAGIC_MOUNT_MARK_FILE);
+    if on {
+        if !mark_path.exists() {
+            std::fs::write(&mark_path, "")
+                .with_context(|| format!("Failed to create {}", mark_path.display()))?;
+        }
+        info!("Module {id} magic mount enabled (reboot required)");
+    } else {
+        if mark_path.exists() {
+            std::fs::remove_file(&mark_path)
+                .with_context(|| format!("Failed to remove {}", mark_path.display()))?;
+        }
+        info!("Module {id} magic mount disabled (reboot required)");
+    }
+
+    Ok(())
+}
+
 pub fn disable_all_modules() -> Result<()> {
     mark_all_modules(defs::DISABLE_FILE_NAME)?;
     if let Err(e) = regenerate_preinit_rc() {
@@ -917,6 +958,7 @@ fn list_module(path: &str) -> Vec<HashMap<String, String>> {
         let web = path.join(defs::MODULE_WEB_DIR).exists();
         let action = path.join(defs::MODULE_ACTION_SH).exists();
         let need_mount = path.join("system").exists() && !path.join("skip_mount").exists();
+        let magic_mount = path.join(defs::MAGIC_MOUNT_MARK_FILE).exists();
 
         module_prop_map.insert("enabled".to_owned(), enabled.to_string());
         module_prop_map.insert("update".to_owned(), update.to_string());
@@ -924,6 +966,7 @@ fn list_module(path: &str) -> Vec<HashMap<String, String>> {
         module_prop_map.insert("web".to_owned(), web.to_string());
         module_prop_map.insert("action".to_owned(), action.to_string());
         module_prop_map.insert("mount".to_owned(), need_mount.to_string());
+        module_prop_map.insert("magicMount".to_owned(), magic_mount.to_string());
 
         resolve_module_icon_path(&mut module_prop_map, "actionIcon", &path);
         resolve_module_icon_path(&mut module_prop_map, "webuiIcon", &path);

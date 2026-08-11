@@ -120,6 +120,11 @@ pub fn on_post_data_fs() -> Result<()> {
         warn!("execute metamodule mount failed: {e}");
     }
 
+    // magic mount modules marked with `.magic_mount` (FolkPatch/APatch style)
+    if let Err(e) = crate::magic_mount::magic_mount() {
+        warn!("magic mount failed: {e:#}");
+    }
+
     run_stage("post-mount", true);
 
     std::env::set_current_dir("/").with_context(|| "failed to chdir to /")?;
@@ -175,6 +180,9 @@ pub fn on_boot_completed() {
     info!("on_boot_completed triggered!");
 
     run_stage("boot-completed", false);
+
+    // hide bootloader unlock status if enabled
+    crate::hide_bootloader::hide_bootloader_status();
 }
 
 const fn resetprop() -> ResetProp {

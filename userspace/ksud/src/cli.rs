@@ -318,6 +318,15 @@ enum Module {
         id: String,
     },
 
+    /// toggle magic mount for module <id>
+    MagicMount {
+        /// module id
+        id: String,
+        /// true to enable magic mount (default), false to disable
+        #[arg(long, action = clap::ArgAction::Set, default_value_t = true)]
+        on: bool,
+    },
+
     /// list all modules
     List,
 
@@ -446,6 +455,12 @@ enum Feature {
 
     /// Save current kernel feature states to file
     Save,
+
+    /// Show or change bootloader hiding status
+    HideBl {
+        /// Subcommand: enable | disable | run (empty shows status)
+        action: Option<String>,
+    },
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -531,6 +546,7 @@ pub fn run() -> Result<()> {
                 Module::Enable { id } => module::enable_module(&id),
                 Module::Disable { id } => module::disable_module(&id),
                 Module::Action { id } => module::run_action(&id),
+                Module::MagicMount { id, on } => module::set_module_magic_mount(&id, on),
                 Module::List => module::list_modules(),
                 Module::Config { internal, command } => {
                     let module_id = match internal {
@@ -693,6 +709,33 @@ pub fn run() -> Result<()> {
             Feature::Check { id } => crate::feature::check_feature(&id),
             Feature::Load => crate::feature::load_config_and_apply(),
             Feature::Save => crate::feature::save_config(),
+            Feature::HideBl { action } => match action.as_deref() {
+                Some("enable" | "disable") => {
+                    let enable = matches!(action.as_deref(), Some("enable"));
+                    crate::hide_bootloader::set_bl_hiding_enabled(enable)?;
+                    println!(
+                        "Bootloader hiding {} (takes effect on next boot)",
+                        if enable { "enabled" } else { "disabled" }
+                    );
+                    Ok(())
+                }
+                Some("run") => {
+                    crate::hide_bootloader::hide_bootloader_status();
+                    println!("Bootloader hiding executed.");
+                    Ok(())
+                }
+                _ => {
+                    println!(
+                        "{}",
+                        if crate::hide_bootloader::is_bl_hiding_enabled() {
+                            "enabled"
+                        } else {
+                            "disabled"
+                        }
+                    );
+                    Ok(())
+                }
+            },
         },
 
         Commands::Debug { command } => match command {
