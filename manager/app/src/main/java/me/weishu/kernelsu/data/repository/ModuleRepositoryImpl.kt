@@ -36,6 +36,7 @@ class ModuleRepositoryImpl : ModuleRepository {
                         enabled = obj.getBoolean("enabled"),
                         update = obj.optBoolean("update"),
                         remove = obj.getBoolean("remove"),
+                        magicMount = obj.optBoolean("magicMount"),
                         updateJson = obj.optString("updateJson"),
                         hasWebUi = obj.optBoolean("web"),
                         hasActionScript = obj.optBoolean("action"),

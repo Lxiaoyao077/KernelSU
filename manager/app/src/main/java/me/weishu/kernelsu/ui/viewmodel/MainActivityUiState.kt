@@ -1,7 +1,6 @@
 package me.weishu.kernelsu.ui.viewmodel
 
 import androidx.compose.runtime.Immutable
-import me.weishu.kernelsu.ui.UiMode
 import me.weishu.kernelsu.ui.theme.AppSettings
 
 @Immutable
@@ -12,5 +11,4 @@ data class MainActivityUiState(
     val enableFloatingBottomBar: Boolean,
     val enableFloatingBottomBarBlur: Boolean,
     val enableNavigationBadge: Boolean,
-    val uiMode: UiMode,
 )

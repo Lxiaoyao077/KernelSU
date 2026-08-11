@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -40,13 +42,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.navigation3.ui.NavDisplay
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -66,7 +61,6 @@ import me.weishu.kernelsu.ui.navigation3.Route
 import me.weishu.kernelsu.ui.navigation3.rememberNavigator
 import me.weishu.kernelsu.ui.screen.about.AboutScreen
 import me.weishu.kernelsu.ui.screen.appprofile.AppProfileScreen
-import me.weishu.kernelsu.ui.screen.colorpalette.ColorPaletteScreen
 import me.weishu.kernelsu.ui.screen.executemoduleaction.ExecuteModuleActionScreen
 import me.weishu.kernelsu.ui.screen.flash.FlashScreen
 import me.weishu.kernelsu.ui.screen.home.HomePager
@@ -87,17 +81,11 @@ import me.weishu.kernelsu.ui.theme.LocalEnableFloatingBottomBarBlur
 import me.weishu.kernelsu.ui.theme.LocalEnableNavigationBadge
 import me.weishu.kernelsu.ui.util.getSuperuserCount
 import me.weishu.kernelsu.ui.util.install
-import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
-import me.weishu.kernelsu.ui.util.rememberContentReady
 import me.weishu.kernelsu.ui.util.rootAvailable
 import me.weishu.kernelsu.ui.viewmodel.MainActivityViewModel
 import me.weishu.kernelsu.ui.viewmodel.MainPagerConfig
 import me.weishu.kernelsu.ui.viewmodel.ModuleViewModel
 import me.weishu.kernelsu.ui.viewmodel.SuperUserViewModel
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -116,7 +104,6 @@ class MainActivity : ComponentActivity() {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             val selectedMainPage by viewModel.selectedMainPage.collectAsStateWithLifecycle()
             val appSettings = uiState.appSettings
-            val uiMode = uiState.uiMode
             val darkMode = appSettings.colorMode.isDark || (appSettings.colorMode.isSystem && isSystemInDarkTheme())
 
             DisposableEffect(darkMode) {
@@ -148,9 +135,8 @@ class MainActivity : ComponentActivity() {
                 LocalEnableFloatingBottomBar provides uiState.enableFloatingBottomBar,
                 LocalEnableFloatingBottomBarBlur provides uiState.enableFloatingBottomBarBlur,
                 LocalEnableNavigationBadge provides uiState.enableNavigationBadge,
-                LocalUiMode provides uiMode,
             ) {
-                KernelSUTheme(appSettings = appSettings, uiMode = uiMode) {
+                KernelSUTheme(appSettings = appSettings) {
                     IntentDispatcher(intentChannel = intentChannel)
                     val mainScreenEntry = @Composable {
                         MainScreen(
@@ -159,53 +145,47 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    val navDisplay = @Composable {
-                        NavDisplay(
-                            backStack = navigator.backStack,
-                            entryDecorators = listOf(
-                                rememberSaveableStateHolderNavEntryDecorator(),
-                                rememberViewModelStoreNavEntryDecorator()
-                            ),
-                            onBack = {
-                                when (val top = navigator.current()) {
-                                    is Route.TemplateEditor -> {
-                                        if (!top.readOnly) {
-                                            navigator.setResult("template_edit", true)
-                                        } else {
-                                            navigator.pop()
-                                        }
-                                    }
-
-                                    else -> navigator.pop()
+                    val atRoot = remember {
+                        derivedStateOf {
+                            navigator.current() is Route.Main && navigator.backStackSize() == 1
+                        }
+                    }
+                    // 根页面不拦截返回，否则会 pop 掉唯一的 Main 导致空白背景界面
+                    BackHandler(enabled = !atRoot.value) {
+                        when (val top = navigator.current()) {
+                            is Route.TemplateEditor -> {
+                                if (!top.readOnly) {
+                                    navigator.setResult("template_edit", true)
+                                } else {
+                                    navigator.pop()
                                 }
-                            },
-                            entryProvider = entryProvider {
-                                entry<Route.Main> { mainScreenEntry() }
-                                entry<Route.About> { AboutScreen() }
-                                entry<Route.Sulog> { SulogScreen() }
-                                entry<Route.ColorPalette> { ColorPaletteScreen() }
-                                entry<Route.AppProfileTemplate> { AppProfileTemplateScreen() }
-                                entry<Route.TemplateEditor> { key -> TemplateEditorScreen(key.template, key.readOnly) }
-                                entry<Route.AppProfile> { key -> AppProfileScreen(key.uid) }
-                                entry<Route.ModuleRepo> { ModuleRepoScreen() }
-                                entry<Route.ModuleRepoDetail> { key -> ModuleRepoDetailScreen(key.module) }
-                                entry<Route.Install> { InstallScreen() }
-                                entry<Route.Flash> { key -> FlashScreen(key.flashIt) }
-                                entry<Route.ExecuteModuleAction> { key -> ExecuteModuleActionScreen(key.moduleId, key.fromShortcut) }
-                                entry<Route.Home> { mainScreenEntry() }
-                                entry<Route.SuperUser> { mainScreenEntry() }
-                                entry<Route.Module> { mainScreenEntry() }
-                                entry<Route.Settings> { mainScreenEntry() }
                             }
-                        )
+                            else -> navigator.pop()
+                        }
                     }
 
-                    when (uiMode) {
-                        UiMode.Material -> androidx.compose.material3.Scaffold(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer
-                        ) { navDisplay() }
-
-                        UiMode.Miuix -> Scaffold { navDisplay() }
+                    val currentEntry = navigator.backStack.lastOrNull()
+                    Scaffold(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    ) {
+                        when (currentEntry) {
+                            is Route.Main -> mainScreenEntry()
+                            is Route.About -> AboutScreen()
+                            is Route.Sulog -> SulogScreen()
+                            is Route.AppProfileTemplate -> AppProfileTemplateScreen()
+                            is Route.TemplateEditor -> TemplateEditorScreen(currentEntry.template, currentEntry.readOnly)
+                            is Route.AppProfile -> AppProfileScreen(currentEntry.uid)
+                            is Route.ModuleRepo -> ModuleRepoScreen()
+                            is Route.ModuleRepoDetail -> ModuleRepoDetailScreen(currentEntry.module)
+                            is Route.Install -> InstallScreen()
+                            is Route.Flash -> FlashScreen(currentEntry.flashIt)
+                            is Route.ExecuteModuleAction -> ExecuteModuleActionScreen(currentEntry.moduleId, currentEntry.fromShortcut)
+                            is Route.Home -> mainScreenEntry()
+                            is Route.SuperUser -> mainScreenEntry()
+                            is Route.Module -> mainScreenEntry()
+                            is Route.Settings -> mainScreenEntry()
+                            null -> {}
+                        }
                     }
                 }
             }
@@ -230,7 +210,6 @@ fun MainScreen(
     val navController = LocalNavigator.current
     val enableBlur = LocalEnableBlur.current
     val enableFloatingBottomBar = LocalEnableFloatingBottomBar.current
-    val enableFloatingBottomBarBlur = LocalEnableFloatingBottomBarBlur.current
     val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { MainPagerConfig.PAGE_COUNT })
     val mainPagerState = rememberMainPagerState(pagerState)
     val isManager = Natives.isManager
@@ -242,8 +221,6 @@ fun MainScreen(
     val moduleViewModel = viewModel<ModuleViewModel>()
     val moduleUiState by moduleViewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(badgeEnabled) {
-        // The module list normally loads when the module pager is first visited; load it eagerly
-        // so the badge is populated while the user is still on another tab.
         if (badgeEnabled && moduleViewModel.uiState.value.modules.isEmpty()) {
             moduleViewModel.initializePreferences()
             moduleViewModel.loadModuleList()
@@ -251,7 +228,6 @@ fun MainScreen(
         }
     }
 
-    // Loading the app list just for a badge is too expensive; read the kernel allowlist instead.
     val superUserViewModel = viewModel<SuperUserViewModel>()
     val grantedUidCount by remember(superUserViewModel) {
         superUserViewModel.uiState
@@ -272,17 +248,6 @@ fun MainScreen(
     } else {
         NavigationBadgeState()
     }
-    val uiMode = LocalUiMode.current
-    val surfaceColor = when (uiMode) {
-        UiMode.Material -> MaterialTheme.colorScheme.surface // Blur is not used in Material, this is just a placeholder
-        UiMode.Miuix -> MiuixTheme.colorScheme.surface
-    }
-    val blurBackdrop = rememberBlurBackdrop(enableBlur)
-
-    val backdrop = rememberLayerBackdrop {
-        drawRect(surfaceColor)
-        drawContent()
-    }
 
     val settledPage = mainPagerState.pagerState.settledPage
     LaunchedEffect(settledPage) {
@@ -301,14 +266,13 @@ fun MainScreen(
     CompositionLocalProvider(
         LocalMainPagerState provides mainPagerState
     ) {
-        val contentReady = rememberContentReady()
+        val contentReady = true
         val pagerContent = @Composable { bottomInnerPadding: Dp ->
-            Box(modifier = if (blurBackdrop != null) Modifier.layerBackdrop(blurBackdrop) else Modifier) {
+            Box {
                 HorizontalPager(
-                    modifier = Modifier
-                        .then(if (enableFloatingBottomBar && enableFloatingBottomBarBlur) Modifier.layerBackdrop(backdrop) else Modifier),
                     state = mainPagerState.pagerState,
                     beyondViewportPageCount = if (contentReady) 3 else 0,
+                    overscrollEffect = null,
                     userScrollEnabled = userScrollEnabled,
                 ) { page ->
                     val isCurrentPage = page == settledPage
@@ -327,32 +291,17 @@ fun MainScreen(
                 .only(WindowInsetsSides.Start)
             val navBarBottomPadding = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
-            when (uiMode) {
-                UiMode.Material -> androidx.compose.material3.Scaffold(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                ) {
-                    Row {
-                        SideRail(navigationBadge)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .consumeWindowInsets(startInsets)
-                        ) {
-                            pagerContent(navBarBottomPadding)
-                        }
-                    }
-                }
-
-                UiMode.Miuix -> Scaffold { _ ->
-                    Row {
-                        SideRail(navigationBadge)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .consumeWindowInsets(startInsets)
-                        ) {
-                            pagerContent(navBarBottomPadding)
-                        }
+            Scaffold(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ) {
+                Row {
+                    SideRail(navigationBadge)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .consumeWindowInsets(startInsets)
+                    ) {
+                        pagerContent(navBarBottomPadding)
                     }
                 }
             }
@@ -362,25 +311,17 @@ fun MainScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     BottomBar(
-                        blurBackdrop = blurBackdrop,
-                        backdrop = backdrop,
                         navigationBadge = navigationBadge,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
             }
 
-            when (uiMode) {
-                UiMode.Material -> androidx.compose.material3.Scaffold(
-                    bottomBar = bottomBar,
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                ) { innerPadding ->
-                    pagerContent(innerPadding.calculateBottomPadding())
-                }
-
-                UiMode.Miuix -> Scaffold(bottomBar = bottomBar) { innerPadding ->
-                    pagerContent(innerPadding.calculateBottomPadding())
-                }
+            Scaffold(
+                bottomBar = bottomBar,
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ) { innerPadding ->
+                pagerContent(innerPadding.calculateBottomPadding())
             }
         }
     }
@@ -392,19 +333,13 @@ private fun MainScreenBackHandler(
     mainState: MainPagerState,
     navController: Navigator,
 ) {
-    val isPagerBackHandlerEnabled by remember {
+    val isBackEnabled by remember {
         derivedStateOf {
             navController.current() is Route.Main && navController.backStackSize() == 1 && mainState.selectedPage != 0
         }
     }
 
-    val navEventState = rememberNavigationEventState(NavigationEventInfo.None)
-
-    NavigationBackHandler(
-        state = navEventState,
-        isBackEnabled = isPagerBackHandlerEnabled,
-        onBackCompleted = {
-            mainState.animateToPage(0)
-        }
-    )
+    BackHandler(enabled = isBackEnabled) {
+        mainState.animateToPage(0)
+    }
 }

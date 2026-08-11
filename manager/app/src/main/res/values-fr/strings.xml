@@ -210,8 +210,6 @@
     <string name="jailbreak_flash_warning">Vous êtes en **mode Jailbreak**. En flashant une partition sur un appareil dont le **bootloader est verrouillé** entraînera l\'échec d\'Android Verified Boot (AVB) et pourrait **empêcher le démarrage de l\'appareil**.\n\nAssurez-vous que votre bootloader est bien déverrouillé avant de continuer !</string>
     <string name="jailbreak_flash_warning_countdown">Continuer (%1$d)</string>
     <string name="settings_monet">Activer Monet</string>
-    <string name="settings_ui_mode">Style de l\'interface</string>
-    <string name="settings_ui_mode_summary">Choisissez un style d\'interface.</string>
     <string name="settings_page_scale">Échelle de page</string>
     <string name="settings_page_scale_summary">Ajustez l\'échelle d\'affichage globale.</string>
     <string name="settings_color_spec">Spécification couleurs</string>

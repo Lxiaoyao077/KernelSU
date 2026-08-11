@@ -74,6 +74,7 @@ data class ModuleActions(
     val onToggleSortEnabledFirst: () -> Unit,
     val onOpenWebUi: (Module) -> Unit,
     val onToggleModule: (Module) -> Unit,
+    val onToggleMagicMount: (Module) -> Unit,
     val onUninstallModule: (Module) -> Unit,
     val onUndoUninstallModule: (Module) -> Unit,
     val onOpenFlash: (List<Uri>) -> Unit,

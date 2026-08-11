@@ -116,6 +116,13 @@ suspend fun getFeaturePersistValue(feature: String): Long? = withContext(Dispatc
     valueLine.substringAfter("Value:").trim().toLongOrNull()
 }
 
+suspend fun getHideBlState(): String = withContext(Dispatchers.IO) {
+    val shell = getRootShell()
+    val out = shell.newJob()
+        .add("${getKsuDaemonPath()} feature hide-bl").to(ArrayList<String>(), null).exec().out
+    out.firstOrNull()?.trim().orEmpty()
+}
+
 fun install() {
     val start = SystemClock.elapsedRealtime()
     val libadbroot = File(ksuApp.applicationInfo.nativeLibraryDir, "libadbroot.so").absolutePath
@@ -149,6 +156,13 @@ fun toggleModule(id: String, enable: Boolean): Boolean {
     } else {
         "module disable $id"
     }
+    val result = execKsud(cmd, true)
+    Log.i(TAG, "$cmd result: $result")
+    return result
+}
+
+fun toggleMagicMount(id: String, on: Boolean): Boolean {
+    val cmd = "module magic-mount $id --on $on"
     val result = execKsud(cmd, true)
     Log.i(TAG, "$cmd result: $result")
     return result

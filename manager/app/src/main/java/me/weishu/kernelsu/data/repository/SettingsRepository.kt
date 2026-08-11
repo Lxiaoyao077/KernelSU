@@ -1,11 +1,9 @@
 package me.weishu.kernelsu.data.repository
 
 interface SettingsRepository {
-    var uiMode: String
     var checkUpdate: Boolean
     var checkModuleUpdate: Boolean
     var themeMode: Int
-    var miuixMonet: Boolean
     var keyColor: Int
     var colorStyle: String
     var colorSpec: String
@@ -40,6 +38,9 @@ interface SettingsRepository {
     suspend fun getSelinuxHideStatus(): String
     fun isSelinuxHideEnabled(): Boolean
     fun setSelinuxHideEnabled(enabled: Boolean): Int
+
+    suspend fun isHideBlEnabled(): Boolean
+    fun setHideBlEnabled(enabled: Boolean): Boolean
 
     suspend fun getSulogStatus(): String
     suspend fun getSulogPersistValue(): Long?

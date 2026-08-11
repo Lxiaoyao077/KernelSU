@@ -3,15 +3,12 @@ package me.weishu.kernelsu.ui.screen.settings
 import androidx.compose.runtime.Immutable
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
-import me.weishu.kernelsu.ui.UiMode
 
 @Immutable
 data class SettingsUiState(
-    val uiMode: String = UiMode.DEFAULT_VALUE,
     val checkUpdate: Boolean = true,
     val checkModuleUpdate: Boolean = true,
     val themeMode: Int = 0,
-    val miuixMonet: Boolean = false,
     val keyColor: Int = 0,
     val colorStyle: String = PaletteStyle.TonalSpot.name,
     val colorSpec: String = ColorSpec.SpecVersion.SPEC_2025.name,
@@ -36,6 +33,9 @@ data class SettingsUiState(
     val selinuxHideStatus: String = "",
     val isSelinuxHideEnabled: Boolean = false,
 
+    // Hide Bootloader
+    val isHideBlEnabled: Boolean = false,
+
     // SU Log
     val sulogStatus: String = "",
     val isSulogEnabled: Boolean = false,
@@ -58,12 +58,11 @@ data class SettingsUiState(
 data class SettingsScreenActions(
     val onSetCheckUpdate: (Boolean) -> Unit,
     val onSetCheckModuleUpdate: (Boolean) -> Unit,
-    val onOpenTheme: () -> Unit,
-    val onSetUiModeIndex: (Int) -> Unit,
     val onOpenProfileTemplate: () -> Unit,
     val onSetSuCompatMode: (Int) -> Unit,
     val onSetKernelUmountEnabled: (Boolean) -> Unit,
     val onSetSelinuxHideEnabled: (Boolean) -> Unit,
+    val onSetHideBlEnabled: (Boolean) -> Unit,
     val onSetSulogEnabled: (Boolean) -> Unit,
     val onSetAdbRootEnabled: (Boolean) -> Unit,
     val onSetDefaultUmountModules: (Boolean) -> Unit,

@@ -155,7 +155,7 @@ object Natives {
         val namespace: Int = Namespace.INHERITED.ordinal,
 
         val nonRootUseDefault: Boolean = true,
-        val umountModules: Boolean = true,
+        val umountModules: Boolean = false,
         var rules: String = "", // this field is save in ksud!!
 
         val flags: Long = FLAG_KSU_NO_NEW_PRIVS,
